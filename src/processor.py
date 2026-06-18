@@ -7,7 +7,10 @@ from config import (
     FEEDBACK_POINTS,
     PRESENTATION_POINTS,
     JOIN_BUFFER_MINUTES,
-    LEAVE_BUFFER_MINUTES
+    LEAVE_BUFFER_MINUTES,
+    FEEDBACK_RATING_COLUMN,
+    POSITIVE_RATINGS,
+    FEEDBACK_CATEGORY_COLUMN,
 )
 
 from src.scoring import get_attendance_points
@@ -54,12 +57,7 @@ def process_season(base_folder, logger):
             if nm:
                 email_to_name[em] = nm
 
-    try:
-        logger.info(
-            f"Built email->name map with {len(email_to_name)} entries"
-        )
-    except Exception:
-        pass
+    logger.info("Input files loaded successfully")
 
     presenter_details = pd.read_excel(
         base_folder / "presenter_details.xlsx"
@@ -193,35 +191,38 @@ def process_season(base_folder, logger):
                 feedback
             )
 
-            rating_col = (
-                "How would you rate "
-                "today’s session overall?"
-            )
+            # Find rating column (fuzzy match for Forms exports)
+            rating_col = None
+            for col in feedback.columns:
+                if (
+                    "rate" in col.lower()
+                    and "session" in col.lower()
+                ):
+                    rating_col = col
+                    break
 
-            if rating_col in feedback.columns:
+            if rating_col is not None:
 
                 positive_feedback_count = (
-                    feedback[
-                        rating_col
-                    ]
+                    feedback[rating_col]
                     .astype(str)
                     .str.lower()
-                    .isin(
-                        [
-                            "excellent",
-                            "very good",
-                            "good"
-                        ]
-                    )
+                    .str.strip()
+                    .isin(POSITIVE_RATINGS)
                     .sum()
                 )
 
-            like_col = (
-                "What did you like "
-                "most about the session?"
-            )
+            # Find category/like column (fuzzy match)
+            like_col = None
+            for col in feedback.columns:
+                if (
+                    "like" in col.lower()
+                    and "session" in col.lower()
+                ):
+                    like_col = col
+                    break
 
-            if like_col in feedback.columns:
+            if like_col is not None:
 
                 for value in (
                     feedback[like_col]
@@ -267,7 +268,7 @@ def process_season(base_folder, logger):
                     row["Last Leave"]
                 )
 
-            except:
+            except (ValueError, TypeError):
                 continue
 
             overlap_seconds = max(
@@ -444,15 +445,15 @@ def process_season(base_folder, logger):
         exist_ok=True
     )
 
-    top10 = leaderboard.head(10)
+    # All participants — full season standings
     leaderboard_json = {
-        "title": "Leaderboard - Top 10",
+        "title": "Season Standings",
         "data": [
             {
                 "name": str(row["Employee"]),
                 "score": int(row["Total_Points"])
             }
-            for _, row in top10.iterrows()
+            for _, row in leaderboard.iterrows()
         ]
     }
 
@@ -493,3 +494,4 @@ def process_season(base_folder, logger):
             index=False
         )
 
+    logger.info("Output files saved — Leaderboard.xlsx, Session_History.xlsx, Session_Summary.xlsx, leaderboard.json")

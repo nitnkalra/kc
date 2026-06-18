@@ -13,17 +13,15 @@ def get_logger():
 
     logger.setLevel(logging.INFO)
 
-    handler = logging.FileHandler(
-        "logs/kc_leaderboard.log",
-        encoding="utf-8"
-    )
-
     formatter = logging.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s"
     )
 
+    handler = logging.FileHandler(
+        "logs/kc_leaderboard.log",
+        encoding="utf-8"
+    )
     handler.setFormatter(formatter)
-
     logger.addHandler(handler)
 
     return logger

@@ -1,17 +1,17 @@
-from config import SEASON_FOLDER
+import sys
 
+from config import SEASON_FOLDER
 from src.logger import get_logger
 from src.processor import process_season
 from leaderboard import render_leaderboard_png
+from visualization import generate_feedback_trend_png, generate_session_count_png
 
 
 def main():
 
     logger = get_logger()
 
-    logger.info(
-        "Process Started"
-    )
+    logger.info("Process started")
 
     try:
 
@@ -22,15 +22,26 @@ def main():
 
         render_leaderboard_png(SEASON_FOLDER)
 
-        logger.info(
-            "Outputs saved successfully"
-        )
+        logger.info("PNG saved — leaderboard.png")
+
+        generate_feedback_trend_png()
+
+        logger.info("PNG saved — feedback_trend.png")
+
+        generate_session_count_png()
+
+        logger.info("PNG saved — session_count.png")
+
+        logger.info("Process completed successfully")
 
     except Exception as e:
 
         logger.error(
-            str(e)
+            str(e),
+            exc_info=True
         )
+
+        sys.exit(1)
 
 
 if __name__ == "__main__":
