@@ -15,6 +15,10 @@ from config import (
     LEADERBOARD_ROW_HEIGHT,
     LEADERBOARD_MARGIN_X,
     LEADERBOARD_MAX_ROWS,
+    # File names
+    OUTPUT_FOLDER,
+    LEADERBOARD_JSON_FILE,
+    LEADERBOARD_PNG_FILE,
 )
 
 
@@ -49,9 +53,9 @@ def _load_fonts():
 
 
 def render_leaderboard_png(base_folder: Path):
-    output_folder = base_folder / "outputs"
-    input_json_path = output_folder / "leaderboard.json"
-    output_file_path = output_folder / "leaderboard.png"
+    output_folder = base_folder / OUTPUT_FOLDER
+    input_json_path = output_folder / LEADERBOARD_JSON_FILE
+    output_file_path = output_folder / LEADERBOARD_PNG_FILE
 
     if not input_json_path.exists():
         raise FileNotFoundError(

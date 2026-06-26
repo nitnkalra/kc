@@ -11,19 +11,269 @@ from config import (
     FEEDBACK_RATING_COLUMN,
     POSITIVE_RATINGS,
     FEEDBACK_CATEGORY_COLUMN,
+    CONSECUTIVE_SESSION_BONUS,
+    VOLUNTEER_ROLE_POINTS,
+    VOLUNTEER_FILE,
+    VOLUNTEER_TRACKER_SHEET,
+    VOLUNTEER_DETAILS_SHEET,
+    # File names
+    EMPLOYEE_MASTER_FILE,
+    PRESENTER_DETAILS_FILE,
+    ATTENDANCE_FILE,
+    FEEDBACK_FILE,
+    PARTICIPANT_HISTORY_FILE,
+    BOT_EMAIL,
+    # Output
+    OUTPUT_FOLDER,
+    LEADERBOARD_JSON_FILE,
+    LEADERBOARD_EXCEL_FILE,
+    SESSION_HISTORY_FILE,
+    SESSION_SUMMARY_FILE,
+    SESSION_SUMMARY_SHEET,
+    FEEDBACK_INSIGHTS_SHEET,
 )
 
 from src.scoring import get_attendance_points
 
 
+# ---------------------------------------------------------------------------
+# Volunteer points helper
+# ---------------------------------------------------------------------------
+
+def _append_volunteer_rows(
+    history_rows: list,
+    presenter_details: pd.DataFrame,
+    base_folder: Path,
+    email_to_name: dict,
+    logger,
+) -> None:
+    """
+    Read kc_volunteer_team.xlsx and append one history row
+    per volunteer activity per session.
+
+    - Volunteer names are matched to emails via the
+      volunteer_details sheet.
+    - Each role column may contain a single name or a
+      comma-separated list of names.
+    - Unknown names are logged as warnings and skipped.
+    """
+    volunteer_file = base_folder / VOLUNTEER_FILE
+
+    if not volunteer_file.exists():
+        logger.warning(
+            f"Volunteer file not found: "
+            f"{volunteer_file.name} "
+            "— skipping volunteer points."
+        )
+        return
+
+    try:
+        tracker = pd.read_excel(
+            volunteer_file,
+            sheet_name=VOLUNTEER_TRACKER_SHEET,
+        )
+        tracker = tracker.rename(columns=str.strip)
+
+        details = pd.read_excel(
+            volunteer_file,
+            sheet_name=VOLUNTEER_DETAILS_SHEET,
+        )
+        details = details.rename(columns=str.strip)
+
+    except Exception as e:
+        logger.error(
+            f"Error loading volunteer file: {e}"
+        )
+        return
+
+    # Build name (lowercase) → email mapping
+    name_to_email = {
+        str(r.get("Volunteer_name", ""))
+        .strip()
+        .lower(): str(r.get("Volunteer_email", ""))
+        .strip()
+        .lower()
+        for _, r in details.iterrows()
+        if pd.notna(r.get("Volunteer_name"))
+        and pd.notna(r.get("Volunteer_email"))
+    }
+
+    # Session_ID → Topic from presenter_details
+    session_topics = {
+        str(r["Session_ID"]).strip(): str(
+            r["Topic"]
+        ).strip()
+        for _, r in presenter_details.iterrows()
+    }
+
+    for _, row in tracker.iterrows():
+
+        session_id = str(
+            row.get("Session_ID", "")
+        ).strip()
+
+        topic = session_topics.get(
+            session_id,
+            str(row.get("Session_name", "")).strip(),
+        )
+
+        for col, points in VOLUNTEER_ROLE_POINTS.items():
+
+            if col not in tracker.columns:
+                continue
+
+            cell = str(row.get(col, "")).strip()
+
+            if not cell or cell.lower() in (
+                "nan", "none", ""
+            ):
+                continue
+
+            # Support comma-separated names
+            for name in [
+                n.strip() for n in cell.split(",")
+            ]:
+                if not name:
+                    continue
+
+                email = name_to_email.get(
+                    name.lower()
+                )
+
+                if email is None:
+                    logger.warning(
+                        f"Volunteer '{name}' not "
+                        f"found in "
+                        f"{VOLUNTEER_DETAILS_SHEET}"
+                        " — skipped."
+                    )
+                    continue
+
+                display_name = email_to_name.get(
+                    email, name
+                )
+
+                history_rows.append(
+                    [
+                        session_id,
+                        topic,
+                        display_name,
+                        0,       # Attendance_%
+                        0,       # Attendance_Points
+                        0,       # Feedback_Points
+                        0,       # Presentation_Points
+                        points,  # Volunteer_Points
+                        0,       # Consecutive_Bonus
+                        points,  # Total_Points
+                    ]
+                )
+
+
+# ---------------------------------------------------------------------------
+# Consecutive session bonus helper
+# ---------------------------------------------------------------------------
+
+def _append_consecutive_bonus_rows(
+    history_rows: list,
+    presenter_details: pd.DataFrame,
+) -> None:
+    """
+    Award CONSECUTIVE_SESSION_BONUS points for every pair
+    of consecutive sessions an employee attends.
+
+    Consecutive = session N and session N+1 ordered by Date.
+    Pure volunteer rows (Attendance_% == 0,
+    Presentation_Points == 0, Volunteer_Points > 0) are
+    excluded from the attendance check — volunteering alone
+    does not count as attending.
+    """
+    sessions = presenter_details.copy()
+    sessions["Date"] = pd.to_datetime(
+        sessions["Date"], errors="coerce"
+    )
+    sessions = (
+        sessions
+        .dropna(subset=["Date"])
+        .sort_values("Date")
+    )
+
+    session_order = (
+        sessions["Session_ID"]
+        .astype(str)
+        .str.strip()
+        .tolist()
+    )
+
+    if len(session_order) < 2:
+        return
+
+    valid_session_ids = set(session_order)
+
+    # Build employee → set of attended session IDs
+    attended: dict = {}
+
+    for row in history_rows:
+
+        sid = row[0]
+
+        if sid not in valid_session_ids:
+            continue
+
+        # Exclude pure volunteer rows
+        is_volunteer_only = (
+            row[3] == 0      # Attendance_%
+            and row[6] == 0  # Presentation_Points
+            and row[7] > 0   # Volunteer_Points
+        )
+
+        if is_volunteer_only:
+            continue
+
+        emp = row[2]
+
+        if emp not in attended:
+            attended[emp] = set()
+
+        attended[emp].add(sid)
+
+    # Append one bonus row per consecutive pair attended
+    for employee, sessions_attended in attended.items():
+
+        for i in range(len(session_order) - 1):
+
+            s1 = session_order[i]
+            s2 = session_order[i + 1]
+
+            if (
+                s1 in sessions_attended
+                and s2 in sessions_attended
+            ):
+                history_rows.append(
+                    [
+                        f"{s1} \u2192 {s2}",
+                        "Consecutive Attendance Bonus",
+                        employee,
+                        0,  # Attendance_%
+                        0,  # Attendance_Points
+                        0,  # Feedback_Points
+                        0,  # Presentation_Points
+                        0,  # Volunteer_Points
+                        CONSECUTIVE_SESSION_BONUS,
+                        CONSECUTIVE_SESSION_BONUS,
+                    ]
+                )
+
+
+# ---------------------------------------------------------------------------
+# Main season processor
+# ---------------------------------------------------------------------------
+
 def process_season(base_folder, logger):
 
     employee_master = pd.read_excel(
-        base_folder / "employee_master.xlsx"
+        base_folder / EMPLOYEE_MASTER_FILE
     )
-    employee_master.columns = (
-        employee_master.columns.str.strip()
-    )
+    employee_master = employee_master.rename(columns=str.strip)
 
     employee_master["Email"] = (
         employee_master["Email"]
@@ -60,17 +310,18 @@ def process_season(base_folder, logger):
     logger.info("Input files loaded successfully")
 
     presenter_details = pd.read_excel(
-        base_folder / "presenter_details.xlsx"
+        base_folder / PRESENTER_DETAILS_FILE
     )
-    presenter_details.columns = (
-        presenter_details.columns.str.strip()
-    )
+    presenter_details = presenter_details.rename(columns=str.strip)
 
     history_rows = []
 
     feedback_category_counter = {}
 
     session_summary_rows = []
+
+    # Collects (Session_Date, Email) for all-time participant history
+    participant_history_rows = []
 
     for _, session in presenter_details.iterrows():
 
@@ -87,13 +338,11 @@ def process_season(base_folder, logger):
         )
 
         attendance_file = (
-            session_folder /
-            "attendance.xlsx"
+            session_folder / ATTENDANCE_FILE
         )
 
         feedback_file = (
-            session_folder /
-            "feedback.xlsx"
+            session_folder / FEEDBACK_FILE
         )
 
         if not attendance_file.exists():
@@ -150,9 +399,7 @@ def process_season(base_folder, logger):
         attendance = pd.read_excel(
             attendance_file
         )
-        attendance.columns = (
-            attendance.columns.str.strip()
-        )
+        attendance = attendance.rename(columns=str.strip)
 
         attendance["Email"] = (
             attendance["Email"]
@@ -172,9 +419,7 @@ def process_season(base_folder, logger):
             feedback = pd.read_excel(
                 feedback_file
             )
-            feedback.columns = (
-                feedback.columns.str.strip()
-            )
+            feedback = feedback.rename(columns=str.strip)
 
             feedback["Email"] = (
                 feedback["Email"]
@@ -191,15 +436,18 @@ def process_season(base_folder, logger):
                 feedback
             )
 
-            # Find rating column (fuzzy match for Forms exports)
-            rating_col = None
-            for col in feedback.columns:
-                if (
-                    "rate" in col.lower()
-                    and "session" in col.lower()
-                ):
-                    rating_col = col
-                    break
+            # Find rating column — config constant first, fuzzy fallback
+            if FEEDBACK_RATING_COLUMN in feedback.columns:
+                rating_col = FEEDBACK_RATING_COLUMN
+            else:
+                rating_col = next(
+                    (
+                        col for col in feedback.columns
+                        if "rate" in col.lower()
+                        and "session" in col.lower()
+                    ),
+                    None
+                )
 
             if rating_col is not None:
 
@@ -212,15 +460,18 @@ def process_season(base_folder, logger):
                     .sum()
                 )
 
-            # Find category/like column (fuzzy match)
-            like_col = None
-            for col in feedback.columns:
-                if (
-                    "like" in col.lower()
-                    and "session" in col.lower()
-                ):
-                    like_col = col
-                    break
+            # Find category/like column — config constant first, fuzzy fallback
+            if FEEDBACK_CATEGORY_COLUMN in feedback.columns:
+                like_col = FEEDBACK_CATEGORY_COLUMN
+            else:
+                like_col = next(
+                    (
+                        col for col in feedback.columns
+                        if "like" in col.lower()
+                        and "session" in col.lower()
+                    ),
+                    None
+                )
 
             if like_col is not None:
 
@@ -250,11 +501,15 @@ def process_season(base_folder, logger):
             # Prefer proper name from employee master when available
             display_name = email_to_name.get(email, email)
 
-            if (
-                email ==
-                "knowledge_club@inxiteout.ai"
-            ):
+            if email == BOT_EMAIL:
                 continue
+
+            participant_history_rows.append(
+                {
+                    "Session_Date": start_dt.date(),
+                    "Email": email,
+                }
+            )
 
             attendees += 1
 
@@ -319,7 +574,9 @@ def process_season(base_folder, logger):
                     attendance_pct,
                     attendance_points,
                     feedback_points,
-                    0,
+                    0,   # Presentation_Points
+                    0,   # Volunteer_Points
+                    0,   # Consecutive_Bonus
                     total_points
                 ]
             )
@@ -342,6 +599,8 @@ def process_season(base_folder, logger):
                     0,
                     0,
                     PRESENTATION_POINTS,
+                    0,   # Volunteer_Points
+                    0,   # Consecutive_Bonus
                     PRESENTATION_POINTS
                 ]
             )
@@ -365,6 +624,21 @@ def process_season(base_folder, logger):
             ]
         )
 
+    # --- Volunteer points (per session, per role) ---
+    _append_volunteer_rows(
+        history_rows,
+        presenter_details,
+        base_folder,
+        email_to_name,
+        logger,
+    )
+
+    # --- Consecutive session bonus ---
+    _append_consecutive_bonus_rows(
+        history_rows,
+        presenter_details,
+    )
+
     history = pd.DataFrame(
         history_rows,
         columns=[
@@ -375,6 +649,8 @@ def process_season(base_folder, logger):
             "Attendance_Points",
             "Feedback_Points",
             "Presentation_Points",
+            "Volunteer_Points",
+            "Consecutive_Bonus",
             "Total_Points"
         ]
     )
@@ -390,6 +666,8 @@ def process_season(base_folder, logger):
                 "Attendance_Points",
                 "Feedback_Points",
                 "Presentation_Points",
+                "Volunteer_Points",
+                "Consecutive_Bonus",
                 "Total_Points"
             ]
         ]
@@ -438,7 +716,7 @@ def process_season(base_folder, logger):
     )
 
     output_folder = (
-        base_folder / "outputs"
+        base_folder / OUTPUT_FOLDER
     )
 
     output_folder.mkdir(
@@ -458,40 +736,82 @@ def process_season(base_folder, logger):
     }
 
     with open(
-        output_folder / "leaderboard.json",
+        output_folder / LEADERBOARD_JSON_FILE,
         "w",
         encoding="utf-8"
     ) as f:
         json.dump(leaderboard_json, f, indent=2)
 
     leaderboard.to_excel(
-        output_folder /
-        "Leaderboard.xlsx",
+        output_folder / LEADERBOARD_EXCEL_FILE,
         index=False
     )
 
     history.to_excel(
-        output_folder /
-        "Session_History.xlsx",
+        output_folder / SESSION_HISTORY_FILE,
         index=False
     )
 
     with pd.ExcelWriter(
-        output_folder /
-        "Session_Summary.xlsx",
+        output_folder / SESSION_SUMMARY_FILE,
         engine="openpyxl"
     ) as writer:
 
         session_summary.to_excel(
             writer,
-            sheet_name="Session_Summary",
+            sheet_name=SESSION_SUMMARY_SHEET,
             index=False
         )
 
         feedback_insights.to_excel(
             writer,
-            sheet_name="Feedback_Insights",
+            sheet_name=FEEDBACK_INSIGHTS_SHEET,
             index=False
         )
 
-    logger.info("Output files saved — Leaderboard.xlsx, Session_History.xlsx, Session_Summary.xlsx, leaderboard.json")
+    # --- Update all-time participant history ---
+    participant_history_file = (
+        base_folder.parent / PARTICIPANT_HISTORY_FILE
+    )
+
+    new_records = (
+        pd.DataFrame(participant_history_rows)
+        .drop_duplicates()
+    )
+
+    if participant_history_file.exists():
+        existing = pd.read_excel(
+            participant_history_file
+        )
+        # Normalize to datetime.date — Excel reads Session_Date
+        # back as Timestamp; new_records contains datetime.date
+        # from start_dt.date(). Mixed types break sort_values.
+        existing["Session_Date"] = pd.to_datetime(
+            existing["Session_Date"]
+        ).dt.date
+        combined = (
+            pd.concat([existing, new_records])
+            .drop_duplicates()
+            .sort_values("Session_Date")
+            .reset_index(drop=True)
+        )
+    else:
+        combined = (
+            new_records
+            .sort_values("Session_Date")
+            .reset_index(drop=True)
+        )
+
+    combined.to_excel(
+        participant_history_file,
+        index=False
+    )
+
+    logger.info(
+        "Output files saved — "
+        f"{LEADERBOARD_EXCEL_FILE}, "
+        f"{SESSION_HISTORY_FILE}, "
+        f"{SESSION_SUMMARY_FILE}, "
+        f"{LEADERBOARD_JSON_FILE}, "
+        f"{PARTICIPANT_HISTORY_FILE}"
+    )
