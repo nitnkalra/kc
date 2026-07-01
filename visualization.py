@@ -1,8 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 from config import (
-    SEASON_FOLDER,
     BG_COLOR,
     ACCENT_COLOR,
     SECONDARY_COLOR,
@@ -10,404 +10,396 @@ from config import (
     GRID_COLOR,
     CHART_FIGSIZE,
     CHART_DPI,
-    # File names
-    PRESENTER_DETAILS_FILE,
-    ALL_SESSIONS_FILE,
-    PARTICIPANT_HISTORY_FILE,
-    SESSION_SUMMARY_FILE,
-    SESSION_SUMMARY_SHEET,
-    EMPLOYEE_MASTER_FILE,
-    # Output
+    # Input paths
+    PRESENTER_DETAILS_PATH,
+    ALL_SESSIONS_PATH,
+    PARTICIPANT_HISTORY_PATH,
+    EMPLOYEE_MASTER_PATH,
+    # Output paths
     OUTPUT_FOLDER,
-    FEEDBACK_TREND_PNG,
-    SESSION_COUNT_PNG,
-    EMPLOYEES_VS_PARTICIPANTS_PNG,
+    SESSION_SUMMARY_PATH,
+    SESSION_SUMMARY_SHEET,
+    FEEDBACK_TREND_PNG_PATH,
+    SESSION_COUNT_PNG_PATH,
+    EMPLOYEES_VS_PARTICIPANTS_PNG_PATH,
+    EMPLOYEES_VS_PARTICIPANTS_MONTHLY_PNG_PATH,
+    PARTICIPATION_RATE_PNG_PATH,
 )
 
 
-def generate_feedback_trend_png():
-    """Generate feedback chart — Total vs Positive feedback per session date."""
+# ---------------------------------------------------------------------------
+# Private helpers — shared across functions
+# ---------------------------------------------------------------------------
 
-    output_folder = SEASON_FOLDER / OUTPUT_FOLDER
-    output_folder.mkdir(exist_ok=True)
-
-    # Load session summary and presenter details
-    session_summary = pd.read_excel(
-        output_folder / SESSION_SUMMARY_FILE,
-        sheet_name=SESSION_SUMMARY_SHEET
-    )
-    presenter_details = pd.read_excel(
-        SEASON_FOLDER / PRESENTER_DETAILS_FILE
-    )
-    presenter_details = presenter_details.rename(columns=str.strip)
-    session_summary = session_summary.rename(columns=str.strip)
-
-    presenter_details["Session_ID"] = (
-        presenter_details["Session_ID"].astype(str).str.strip()
-    )
-    session_summary["Session_ID"] = (
-        session_summary["Session_ID"].astype(str).str.strip()
-    )
-
-    # Merge to get session dates
-    merged = session_summary.merge(
-        presenter_details[["Session_ID", "Date"]],
-        on="Session_ID",
-        how="left"
-    )
-    merged["Date"] = pd.to_datetime(merged["Date"])
-
-    # Only include sessions where feedback was actually collected
-    merged = merged[merged["Feedback_Count"] > 0]
-    merged = merged.sort_values("Date").reset_index(drop=True)
-
-    if merged.empty:
+def _load_participant_counts() -> "pd.DataFrame | None":
+    """
+    Load all_participant_history.xlsx and return unique participant count
+    per session date.  Returns None if the file does not exist / is empty.
+    """
+    if not PARTICIPANT_HISTORY_PATH.exists():
         return None
 
-    # Use session labels on x-axis (prevents matplotlib date auto-range)
-    merged["Label"] = merged["Date"].dt.strftime("%d %b %Y")
-    n = len(merged)
-
-    # --- Plot ---
-    fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
-    fig.patch.set_facecolor(BG_COLOR)
-    ax.set_facecolor(BG_COLOR)
-
-    x_positions = list(range(n))
-
-    # Lines
-    ax.plot(
-        x_positions,
-        merged["Feedback_Count"].values,
-        color=ACCENT_COLOR,
-        marker="o",
-        markersize=10,
-        linewidth=2.5,
-        label="Total Feedback"
-    )
-    ax.plot(
-        x_positions,
-        merged["Positive_Feedback_Count"].values,
-        color=SECONDARY_COLOR,
-        marker="s",
-        markersize=9,
-        linewidth=2.5,
-        label="Positive Feedback"
-    )
-
-    # Data labels — i is 0-based after reset_index(drop=True)
-    for i, row in merged.iterrows():
-        ax.text(
-            i, row["Feedback_Count"] + 0.3,
-            str(int(row["Feedback_Count"])),
-            ha="center", va="bottom",
-            color=ACCENT_COLOR, fontsize=10, fontweight="bold"
-        )
-        ax.text(
-            i, row["Positive_Feedback_Count"] - 0.3,
-            str(int(row["Positive_Feedback_Count"])),
-            ha="center", va="top",
-            color=SECONDARY_COLOR, fontsize=10, fontweight="bold"
-        )
-
-    # Styling
-    ax.set_title(
-        "Feedback \u2014 Per Session",
-        color=ACCENT_COLOR,
-        fontsize=18,
-        fontweight="bold",
-        pad=15
-    )
-    ax.set_xlabel("Session Date", color=TEXT_COLOR, fontsize=12)
-    ax.set_ylabel("Count", color=TEXT_COLOR, fontsize=12)
-
-    ax.set_xticks(x_positions)
-    ax.set_xticklabels(merged["Label"].values)
-    ax.tick_params(colors=TEXT_COLOR, labelsize=10)
-    plt.xticks(rotation=45, ha="right")
-
-    ax.grid(True, color=GRID_COLOR, linewidth=0.5, alpha=0.7)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_color(GRID_COLOR)
-    ax.spines["bottom"].set_color(GRID_COLOR)
-
-    ax.legend(
-        loc="upper left",
-        fontsize=11,
-        facecolor=BG_COLOR,
-        edgecolor=ACCENT_COLOR,
-        labelcolor=TEXT_COLOR
-    )
-
-    ax.set_ylim(bottom=0)
-    plt.tight_layout()
-
-    # Save PNG
-    output_path = output_folder / FEEDBACK_TREND_PNG
-    fig.savefig(
-        output_path,
-        dpi=CHART_DPI,
-        facecolor=BG_COLOR,
-        bbox_inches="tight"
-    )
-    plt.close(fig)
-
-    return output_path
-
-
-def generate_session_count_png():
-    """Generate monthly session count bar chart from all_session_details.xlsx."""
-
-    output_folder = SEASON_FOLDER / OUTPUT_FOLDER
-    output_folder.mkdir(exist_ok=True)
-
-    # Load all session details (all-time data)
-    all_sessions = pd.read_excel(
-        SEASON_FOLDER.parent / ALL_SESSIONS_FILE
-    )
-    all_sessions = all_sessions.rename(columns=str.strip)
-    all_sessions["Date"] = pd.to_datetime(all_sessions["Date"])
-
-    # Group by month
-    all_sessions["Month"] = all_sessions["Date"].dt.to_period("M")
-    monthly_counts = (
-        all_sessions
-        .groupby("Month")
-        .size()
-        .reset_index(name="Session_Count")
-    )
-    monthly_counts["Month_Label"] = (
-        monthly_counts["Month"].dt.strftime("%b %Y")
-    )
-    monthly_counts = (
-        monthly_counts
-        .sort_values("Month")
-        .reset_index(drop=True)
-    )
-
-    # --- Plot ---
-    fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
-    fig.patch.set_facecolor(BG_COLOR)
-    ax.set_facecolor(BG_COLOR)
-
-    bars = ax.bar(
-        monthly_counts["Month_Label"],
-        monthly_counts["Session_Count"],
-        color=ACCENT_COLOR,
-        alpha=0.85,
-        width=0.6,
-        edgecolor=ACCENT_COLOR,
-        linewidth=0.5
-    )
-
-    # Data labels on bars
-    for bar in bars:
-        height = bar.get_height()
-        ax.text(
-            bar.get_x() + bar.get_width() / 2.0,
-            height + 0.1,
-            str(int(height)),
-            ha="center",
-            va="bottom",
-            color=ACCENT_COLOR,
-            fontsize=11,
-            fontweight="bold"
-        )
-
-    ax.set_title(
-        "Sessions Delivered \u2014 Monthly",
-        color=ACCENT_COLOR,
-        fontsize=18,
-        fontweight="bold",
-        pad=15
-    )
-    ax.set_xlabel("Month", color=TEXT_COLOR, fontsize=12)
-    ax.set_ylabel("Session Count", color=TEXT_COLOR, fontsize=12)
-
-    ax.tick_params(colors=TEXT_COLOR, labelsize=10)
-    plt.xticks(rotation=45, ha="right")
-
-    ax.grid(True, color=GRID_COLOR, linewidth=0.5, alpha=0.7, axis="y")
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_color(GRID_COLOR)
-    ax.spines["bottom"].set_color(GRID_COLOR)
-
-    ax.set_ylim(bottom=0)
-    plt.tight_layout()
-
-    # Save PNG
-    output_path = output_folder / SESSION_COUNT_PNG
-    fig.savefig(
-        output_path,
-        dpi=CHART_DPI,
-        facecolor=BG_COLOR,
-        bbox_inches="tight"
-    )
-    plt.close(fig)
-
-    return output_path
-
-
-def generate_employees_vs_participants_png():
-    """
-    Generate all-time Employees vs Participants line chart per month.
-
-    - Participants: unique attendees per month, read from
-      all_participant_history.xlsx (Session_Date, Email).
-      Appended by processor.py each season run.
-    - Employees: total headcount from the current season's
-      employee_master (used as the organisation baseline).
-    """
-
-    base_folder = SEASON_FOLDER.parent  # kc/ root
-    output_folder = SEASON_FOLDER / OUTPUT_FOLDER
-    output_folder.mkdir(exist_ok=True)
-
-    # --- Baseline: total employees from current season ---
-    employee_master = pd.read_excel(
-        SEASON_FOLDER / EMPLOYEE_MASTER_FILE
-    )
-    employee_master = employee_master.rename(columns=str.strip)
-    total_employees = len(employee_master)
-
-    # --- Load participant history ---
-    history_file = base_folder / PARTICIPANT_HISTORY_FILE
-
-    if not history_file.exists():
-        return None
-
-    participant_history = pd.read_excel(history_file)
-    participant_history = participant_history.rename(columns=str.strip)
-    participant_history["Session_Date"] = pd.to_datetime(
-        participant_history["Session_Date"],
-        errors="coerce",
-    )
-    participant_history["Month"] = (
-        participant_history["Session_Date"]
-        .dt.to_period("M")
-    )
-
-    # Unique participants per month
-    df = (
-        participant_history
-        .groupby("Month")["Email"]
-        .nunique()
-        .reset_index(name="Participants")
-    )
-    df["Employees"] = total_employees
-    df = df.sort_values("Month").reset_index(drop=True)
+    df = pd.read_excel(PARTICIPANT_HISTORY_PATH)
+    df = df.rename(columns=str.strip)
+    df["Session_Date"] = pd.to_datetime(df["Session_Date"], errors="coerce")
+    df = df.dropna(subset=["Session_Date"])
 
     if df.empty:
         return None
 
-    # Include year in label — data spans multiple years
-    df["Month_Label"] = df["Month"].dt.strftime("%b %Y")
-    x_pos = list(range(len(df)))
+    return (
+        df.groupby("Session_Date")["Email"]
+        .nunique()
+        .reset_index(name="Participants")
+        .sort_values("Session_Date")
+        .reset_index(drop=True)
+    )
 
-    # --- Plot ---
-    fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
+
+def _load_total_employees() -> int:
+    """Return total headcount from employee_master.xlsx."""
+    emp = pd.read_excel(EMPLOYEE_MASTER_PATH)
+    emp = emp.rename(columns=str.strip)
+    return len(emp)
+
+
+def _style_axes(ax, fig):
+    """Apply common dark-theme styling to axes."""
     fig.patch.set_facecolor(BG_COLOR)
     ax.set_facecolor(BG_COLOR)
-
-    # Area fills
-    ax.fill_between(
-        x_pos,
-        df["Employees"].values,
-        alpha=0.12,
-        color=SECONDARY_COLOR,
-    )
-    ax.fill_between(
-        x_pos,
-        df["Participants"].values,
-        alpha=0.25,
-        color=ACCENT_COLOR,
-    )
-
-    # Lines
-    ax.plot(
-        x_pos,
-        df["Participants"].values,
-        color=ACCENT_COLOR,
-        marker="o",
-        markersize=9,
-        linewidth=2.5,
-        label="Participants",
-    )
-    ax.plot(
-        x_pos,
-        df["Employees"].values,
-        color=SECONDARY_COLOR,
-        marker="o",
-        markersize=9,
-        linewidth=2.5,
-        label="Employees",
-    )
-
-    # Data labels — i is 0-based after reset_index(drop=True)
-    for i, row in df.iterrows():
-        ax.text(
-            i, row["Participants"] + 0.5,
-            str(int(row["Participants"])),
-            ha="center", va="bottom",
-            color=ACCENT_COLOR, fontsize=10, fontweight="bold",
-        )
-        ax.text(
-            i, row["Employees"] - 0.5,
-            str(int(row["Employees"])),
-            ha="center", va="top",
-            color=SECONDARY_COLOR, fontsize=10, fontweight="bold",
-        )
-
-    # Styling
-    ax.set_title(
-        "Employees vs Participants",
-        color=ACCENT_COLOR,
-        fontsize=18,
-        fontweight="bold",
-        pad=15,
-    )
-    ax.set_xlabel("Month", color=TEXT_COLOR, fontsize=12)
-    ax.set_ylabel("Count", color=TEXT_COLOR, fontsize=12)
-    ax.set_xticks(x_pos)
-    ax.set_xticklabels(df["Month_Label"].values)
-    ax.tick_params(colors=TEXT_COLOR, labelsize=10)
-    plt.xticks(rotation=45, ha="right")
-
-    ax.grid(True, color=GRID_COLOR, linewidth=0.5, alpha=0.7)
+    ax.tick_params(colors=TEXT_COLOR)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_color(GRID_COLOR)
     ax.spines["bottom"].set_color(GRID_COLOR)
 
-    ax.legend(
-        loc="upper left",
-        fontsize=11,
-        facecolor=BG_COLOR,
-        edgecolor=ACCENT_COLOR,
-        labelcolor=TEXT_COLOR,
+
+# ---------------------------------------------------------------------------
+# 1. Feedback trend — Total vs Positive per session
+# ---------------------------------------------------------------------------
+
+def generate_feedback_trend_png():
+    """Line chart: total and positive feedback count per session."""
+
+    OUTPUT_FOLDER.mkdir(exist_ok=True)
+
+    session_summary = pd.read_excel(
+        SESSION_SUMMARY_PATH, sheet_name=SESSION_SUMMARY_SHEET
+    )
+    presenter = pd.read_excel(PRESENTER_DETAILS_PATH)
+    session_summary = session_summary.rename(columns=str.strip)
+    presenter       = presenter.rename(columns=str.strip)
+
+    session_summary["Session_ID"] = (
+        session_summary["Session_ID"].astype(str).str.strip()
+    )
+    presenter["Session_ID"] = presenter["Session_ID"].astype(str).str.strip()
+
+    merged = session_summary.merge(
+        presenter[["Session_ID", "Date"]], on="Session_ID", how="left"
+    )
+    merged["Date"] = pd.to_datetime(merged["Date"])
+    merged = (
+        merged[merged["Feedback_Count"] > 0]
+        .sort_values("Date")
+        .reset_index(drop=True)
     )
 
+    if merged.empty:
+        return None
+
+    merged["Label"] = merged["Date"].dt.strftime("%d %b %Y")
+    x = list(range(len(merged)))
+
+    fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
+    _style_axes(ax, fig)
+
+    ax.plot(x, merged["Feedback_Count"].values,
+            color=ACCENT_COLOR, marker="o", markersize=10,
+            linewidth=2.5, label="Total Feedback")
+    ax.plot(x, merged["Positive_Feedback_Count"].values,
+            color=SECONDARY_COLOR, marker="s", markersize=9,
+            linewidth=2.5, label="Positive Feedback")
+
+    for i, row in merged.iterrows():
+        ax.text(i, row["Feedback_Count"] + 0.3,
+                str(int(row["Feedback_Count"])),
+                ha="center", va="bottom",
+                color=ACCENT_COLOR, fontsize=10, fontweight="bold")
+        ax.text(i, row["Positive_Feedback_Count"] - 0.3,
+                str(int(row["Positive_Feedback_Count"])),
+                ha="center", va="top",
+                color=SECONDARY_COLOR, fontsize=10, fontweight="bold")
+
+    ax.set_title("Feedback \u2014 Per Session",
+                 color=ACCENT_COLOR, fontsize=18, fontweight="bold", pad=15)
+    ax.set_xlabel("Session Date", color=TEXT_COLOR, fontsize=12)
+    ax.set_ylabel("Count",        color=TEXT_COLOR, fontsize=12)
+    ax.set_xticks(x)
+    ax.set_xticklabels(merged["Label"].values)
+    plt.xticks(rotation=45, ha="right")
+    ax.grid(True, color=GRID_COLOR, linewidth=0.5, alpha=0.7)
+    ax.legend(loc="upper left", fontsize=11,
+              facecolor=BG_COLOR, edgecolor=ACCENT_COLOR, labelcolor=TEXT_COLOR)
     ax.set_ylim(bottom=0)
     plt.tight_layout()
 
-    output_path = output_folder / EMPLOYEES_VS_PARTICIPANTS_PNG
-    fig.savefig(
-        output_path,
-        dpi=CHART_DPI,
-        facecolor=BG_COLOR,
-        bbox_inches="tight",
-    )
+    fig.savefig(FEEDBACK_TREND_PNG_PATH, dpi=CHART_DPI,
+                facecolor=BG_COLOR, bbox_inches="tight")
     plt.close(fig)
+    return FEEDBACK_TREND_PNG_PATH
 
-    return output_path
+
+# ---------------------------------------------------------------------------
+# 2. Session count — Monthly bar chart (all-time)
+# ---------------------------------------------------------------------------
+
+def generate_session_count_png():
+    """Bar chart: number of sessions delivered per month (all-time)."""
+
+    OUTPUT_FOLDER.mkdir(exist_ok=True)
+
+    all_sessions = pd.read_excel(ALL_SESSIONS_PATH)
+    all_sessions = all_sessions.rename(columns=str.strip)
+    all_sessions["Date"]  = pd.to_datetime(all_sessions["Date"])
+    all_sessions["Month"] = all_sessions["Date"].dt.to_period("M")
+
+    monthly = (
+        all_sessions.groupby("Month").size()
+        .reset_index(name="Session_Count")
+    )
+    monthly["Month_Label"] = monthly["Month"].dt.strftime("%b %Y")
+    monthly = monthly.sort_values("Month").reset_index(drop=True)
+
+    fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
+    _style_axes(ax, fig)
+
+    bars = ax.bar(monthly["Month_Label"], monthly["Session_Count"],
+                  color=ACCENT_COLOR, alpha=0.85, width=0.6,
+                  edgecolor=ACCENT_COLOR, linewidth=0.5)
+
+    for bar in bars:
+        h = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2, h + 0.1, str(int(h)),
+                ha="center", va="bottom",
+                color=ACCENT_COLOR, fontsize=11, fontweight="bold")
+
+    ax.set_title("Sessions Delivered \u2014 Monthly",
+                 color=ACCENT_COLOR, fontsize=18, fontweight="bold", pad=15)
+    ax.set_xlabel("Month",         color=TEXT_COLOR, fontsize=12)
+    ax.set_ylabel("Session Count", color=TEXT_COLOR, fontsize=12)
+    plt.xticks(rotation=45, ha="right")
+    ax.grid(True, color=GRID_COLOR, linewidth=0.5, alpha=0.7, axis="y")
+    ax.set_ylim(bottom=0)
+    plt.tight_layout()
+
+    fig.savefig(SESSION_COUNT_PNG_PATH, dpi=CHART_DPI,
+                facecolor=BG_COLOR, bbox_inches="tight")
+    plt.close(fig)
+    return SESSION_COUNT_PNG_PATH
+
+
+# ---------------------------------------------------------------------------
+# 3. Employees vs Participants — PER SESSION
+# ---------------------------------------------------------------------------
+
+def generate_employees_vs_participants_png():
+    """Dual-line chart: unique attendees per session vs total headcount."""
+
+    OUTPUT_FOLDER.mkdir(exist_ok=True)
+
+    total_employees = _load_total_employees()
+    counts = _load_participant_counts()
+    if counts is None:
+        return None
+
+    counts["Employees"]     = total_employees
+    counts["Session_Label"] = counts["Session_Date"].dt.strftime("%d %b '%y")
+    x = list(range(len(counts)))
+
+    fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
+    _style_axes(ax, fig)
+
+    ax.fill_between(x, counts["Employees"].values,    alpha=0.10, color=SECONDARY_COLOR)
+    ax.fill_between(x, counts["Participants"].values, alpha=0.22, color=ACCENT_COLOR)
+
+    ax.plot(x, counts["Participants"].values,
+            color=ACCENT_COLOR, marker="o", markersize=8,
+            linewidth=2.5, label="Participants (per session)")
+    ax.plot(x, counts["Employees"].values,
+            color=SECONDARY_COLOR, marker=None,
+            linewidth=2, linestyle="--", label=f"Employees ({total_employees})")
+
+    for i, row in counts.iterrows():
+        ax.text(i, row["Participants"] + 0.4, str(int(row["Participants"])),
+                ha="center", va="bottom",
+                color=ACCENT_COLOR, fontsize=9, fontweight="bold")
+
+    ax.set_title("Employees vs Participants \u2014 Per Session",
+                 color=ACCENT_COLOR, fontsize=18, fontweight="bold", pad=15)
+    ax.set_xlabel("Session Date", color=TEXT_COLOR, fontsize=12)
+    ax.set_ylabel("Headcount",    color=TEXT_COLOR, fontsize=12)
+    ax.set_xticks(x)
+    ax.set_xticklabels(counts["Session_Label"].values)
+    plt.xticks(rotation=45, ha="right")
+    ax.grid(True, color=GRID_COLOR, linewidth=0.5, alpha=0.7)
+    ax.legend(loc="upper left", fontsize=11,
+              facecolor=BG_COLOR, edgecolor=ACCENT_COLOR, labelcolor=TEXT_COLOR)
+    ax.set_ylim(bottom=0)
+    plt.tight_layout()
+
+    fig.savefig(EMPLOYEES_VS_PARTICIPANTS_PNG_PATH, dpi=CHART_DPI,
+                facecolor=BG_COLOR, bbox_inches="tight")
+    plt.close(fig)
+    return EMPLOYEES_VS_PARTICIPANTS_PNG_PATH
+
+
+# ---------------------------------------------------------------------------
+# 4. Employees vs Participants — MONTHLY
+# ---------------------------------------------------------------------------
+
+def generate_employees_vs_participants_monthly_png():
+    """Dual-line chart: unique attendees per month vs total headcount."""
+
+    OUTPUT_FOLDER.mkdir(exist_ok=True)
+
+    total_employees = _load_total_employees()
+
+    if not PARTICIPANT_HISTORY_PATH.exists():
+        return None
+
+    raw = pd.read_excel(PARTICIPANT_HISTORY_PATH)
+    raw = raw.rename(columns=str.strip)
+    raw["Session_Date"] = pd.to_datetime(raw["Session_Date"], errors="coerce")
+    raw = raw.dropna(subset=["Session_Date"])
+    raw["Month"] = raw["Session_Date"].dt.to_period("M")
+
+    monthly = (
+        raw.groupby("Month")["Email"].nunique()
+        .reset_index(name="Participants")
+        .sort_values("Month")
+        .reset_index(drop=True)
+    )
+    monthly["Employees"]   = total_employees
+    monthly["Month_Label"] = monthly["Month"].dt.strftime("%b %Y")
+    x = list(range(len(monthly)))
+
+    fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
+    _style_axes(ax, fig)
+
+    ax.fill_between(x, monthly["Employees"].values,    alpha=0.10, color=SECONDARY_COLOR)
+    ax.fill_between(x, monthly["Participants"].values, alpha=0.22, color=ACCENT_COLOR)
+
+    ax.plot(x, monthly["Participants"].values,
+            color=ACCENT_COLOR, marker="o", markersize=9,
+            linewidth=2.5, label="Participants (per month)")
+    ax.plot(x, monthly["Employees"].values,
+            color=SECONDARY_COLOR, marker=None,
+            linewidth=2, linestyle="--", label=f"Employees ({total_employees})")
+
+    for i, row in monthly.iterrows():
+        ax.text(i, row["Participants"] + 0.4, str(int(row["Participants"])),
+                ha="center", va="bottom",
+                color=ACCENT_COLOR, fontsize=10, fontweight="bold")
+        ax.text(i, row["Employees"] - 0.5, str(int(row["Employees"])),
+                ha="center", va="top",
+                color=SECONDARY_COLOR, fontsize=10, fontweight="bold")
+
+    ax.set_title("Employees vs Participants \u2014 Monthly",
+                 color=ACCENT_COLOR, fontsize=18, fontweight="bold", pad=15)
+    ax.set_xlabel("Month",    color=TEXT_COLOR, fontsize=12)
+    ax.set_ylabel("Headcount",color=TEXT_COLOR, fontsize=12)
+    ax.set_xticks(x)
+    ax.set_xticklabels(monthly["Month_Label"].values)
+    plt.xticks(rotation=45, ha="right")
+    ax.grid(True, color=GRID_COLOR, linewidth=0.5, alpha=0.7)
+    ax.legend(loc="upper left", fontsize=11,
+              facecolor=BG_COLOR, edgecolor=ACCENT_COLOR, labelcolor=TEXT_COLOR)
+    ax.set_ylim(bottom=0)
+    plt.tight_layout()
+
+    fig.savefig(EMPLOYEES_VS_PARTICIPANTS_MONTHLY_PNG_PATH, dpi=CHART_DPI,
+                facecolor=BG_COLOR, bbox_inches="tight")
+    plt.close(fig)
+    return EMPLOYEES_VS_PARTICIPANTS_MONTHLY_PNG_PATH
+
+
+# ---------------------------------------------------------------------------
+# 5. Participation rate % — per session
+# ---------------------------------------------------------------------------
+
+def generate_participation_rate_png():
+    """Color-coded bar chart: attendance rate % per session."""
+
+    OUTPUT_FOLDER.mkdir(exist_ok=True)
+
+    total_employees = _load_total_employees()
+    if total_employees == 0:
+        return None
+
+    counts = _load_participant_counts()
+    if counts is None:
+        return None
+
+    counts["Rate"]          = (counts["Participants"] / total_employees * 100).round(1)
+    counts["Session_Label"] = counts["Session_Date"].dt.strftime("%d %b '%y")
+    x = list(range(len(counts)))
+
+    def _color(rate: float) -> str:
+        if rate >= 75:
+            return "#4ADE80"
+        if rate >= 50:
+            return ACCENT_COLOR
+        if rate >= 25:
+            return "#FB923C"
+        return "#F87171"
+
+    colors = [_color(r) for r in counts["Rate"]]
+
+    fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
+    _style_axes(ax, fig)
+
+    ax.bar(x, counts["Rate"].values, color=colors, width=0.6, alpha=0.85)
+
+    for ref, lbl in [(25, "25%"), (50, "50%"), (75, "75%")]:
+        ax.axhline(ref, color=GRID_COLOR, linewidth=1.2, linestyle="--", alpha=0.8)
+        ax.text(len(x) - 0.5, ref + 0.8, lbl,
+                color=TEXT_COLOR, fontsize=9, ha="right", alpha=0.7)
+
+    for i, row in counts.iterrows():
+        ax.text(i, row["Rate"] + 0.8, f"{row['Rate']}%",
+                ha="center", va="bottom",
+                color=TEXT_COLOR, fontsize=9, fontweight="bold")
+
+    legend_patches = [
+        mpatches.Patch(color="#4ADE80",    label="\u2265 75%  High"),
+        mpatches.Patch(color=ACCENT_COLOR, label="\u2265 50%  Moderate"),
+        mpatches.Patch(color="#FB923C",    label="\u2265 25%  Low"),
+        mpatches.Patch(color="#F87171",    label="< 25%   Very low"),
+    ]
+    ax.legend(handles=legend_patches, loc="upper left", fontsize=10,
+              facecolor=BG_COLOR, edgecolor=ACCENT_COLOR, labelcolor=TEXT_COLOR)
+
+    ax.set_title("Participation Rate \u2014 Per Session",
+                 color=ACCENT_COLOR, fontsize=18, fontweight="bold", pad=15)
+    ax.set_xlabel("Session Date",      color=TEXT_COLOR, fontsize=12)
+    ax.set_ylabel("Participation %",   color=TEXT_COLOR, fontsize=12)
+    ax.set_xticks(x)
+    ax.set_xticklabels(counts["Session_Label"].values)
+    plt.xticks(rotation=45, ha="right")
+    ax.grid(True, color=GRID_COLOR, linewidth=0.5, alpha=0.5, axis="y")
+    ax.set_ylim(bottom=0, top=110)
+    plt.tight_layout()
+
+    fig.savefig(PARTICIPATION_RATE_PNG_PATH, dpi=CHART_DPI,
+                facecolor=BG_COLOR, bbox_inches="tight")
+    plt.close(fig)
+    return PARTICIPATION_RATE_PNG_PATH
 
 
 if __name__ == "__main__":
-    saved1 = generate_feedback_trend_png()
-    print(f"Saved: {saved1}")
-    saved2 = generate_session_count_png()
-    print(f"Saved: {saved2}")
-    saved3 = generate_employees_vs_participants_png()
-    print(f"Saved: {saved3}")
+    print(f"Saved: {generate_feedback_trend_png()}")
+    print(f"Saved: {generate_session_count_png()}")
+    print(f"Saved: {generate_employees_vs_participants_png()}")
+    print(f"Saved: {generate_employees_vs_participants_monthly_png()}")
+    print(f"Saved: {generate_participation_rate_png()}")
