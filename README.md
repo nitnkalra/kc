@@ -14,6 +14,12 @@ Windows
 venv\Scripts\activate
 ```
 
+macOS / Linux
+
+```bash
+source venv/bin/activate
+```
+
 ## Install
 
 ```bash
@@ -24,7 +30,10 @@ pip install -r requirements.txt
 
 Set:
 
-SEASON_FOLDER
+- `KC_ROOT` — absolute path to the kc project root folder on this machine
+- `SEASON` — active season sub-folder name (e.g. `"season_5"`)
+
+> `KC_ROOT` only needs updating when moving to a new machine or sharing with someone else.
 
 ## Run
 
@@ -32,15 +41,18 @@ SEASON_FOLDER
 python main.py
 ```
 
-Outputs:
+Outputs saved to `season_5/outputs/`:
 
-- Leaderboard.xlsx
-- Session_History.xlsx
-- Session_Summary.xlsx
-
-Location:
-
-Season_5/outputs
+- `leaderboard.png`
+- `leaderboard.json`
+- `Leaderboard.xlsx`
+- `Session_Summary.xlsx`
+- `Score_Timeline.xlsx`
+- `feedback_trend.png`
+- `session_count.png`
+- `employees_vs_participants.png`
+- `employees_vs_participants_monthly.png`
+- `participation_rate.png`
 
 ---
 
@@ -97,13 +109,25 @@ Fields to fill: session ID, date, topic, and any other required columns.
 
 ### Step 5 — Update Presenter Details
 
-If a new presenter conducted this session, open `presenter_details.xlsx` inside the active season folder and add their details.
+Every session must have a row in `presenter_details.xlsx` inside the active season folder. Open the file and add a new row for this session.
 
 ```
 season_5/presenter_details.xlsx
 ```
 
-> Skip this step if the presenter already exists in the file.
+Required columns to fill for each session:
+
+| Column | Description |
+| --- | --- |
+| `Session_ID` | Must match the session folder name (e.g. `session_06`) |
+| `Name` | Presenter's display name |
+| `Email` | **Presenter's email — must match `employee_master.xlsx`** |
+| `Topic` | Session topic |
+| `Date` | Session date |
+| `Start Time` | Session start time |
+| `End Time` | Session end time |
+
+> **Email is mandatory.** Presenter detection and score assignment are email-based. A missing or mismatched email will cause the presenter to be treated as a regular attendee and result in incorrect scores.
 
 ---
 
@@ -169,3 +193,30 @@ season_5/outputs/
 | Changing the visual theme | `config.py` → change `ACTIVE_THEME` |
 | Updating scoring rules or points | `config.py` → Scoring Rules section |
 | Resizing the leaderboard image | `config.py` → change `LEADERBOARD_WIDTH` |
+
+---
+
+## Scoring Rules Reference
+
+| Activity | Points |
+| --- | --- |
+| Attended 90–100% of session | 25 |
+| Attended 75–89% of session | 20 |
+| Attended 50–74% of session | 15 |
+| Attended 25–49% of session | 10 |
+| Attended 5–24% of session | 5 |
+| Attended < 5% of session | 0 |
+| Submitted feedback form | 25 |
+| Presented a session | 100 (flat) |
+| Consecutive session bonus (per pair) | +5 |
+| Volunteer — Session hosting | 10 |
+| Volunteer — Backend management | 5 |
+| Volunteer — Speaker coordination | 5 |
+| Volunteer — Last-minute issue | 5 |
+
+**Notes:**
+
+- Attendance % is calculated against the ideal session window (start + 3 min grace → end − 5 min grace).
+- Consecutive bonus requires **≥ 5% attendance** in both sessions of the pair. Joining briefly (< 5%) does not count toward a streak.
+- Presenters receive **100 pts flat**. Attendance points and feedback points are not applicable to presenters.
+- Volunteer points stack — a volunteer who hosts AND manages backend in the same session earns 10 + 5 = 15 pts.

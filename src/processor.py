@@ -102,6 +102,13 @@ def _append_volunteer_rows(
     Read kc_volunteer_team.xlsx and append one history row
     per volunteer activity per session.
 
+    Column matching is case-insensitive — "Session_Hosting" and
+    "Session_hosting" are treated identically.
+
+    Name resolution flow (email-based, canonical):
+        tracker name  →  volunteer_details (fuzzy match)  →  email
+        email         →  employee_master                  →  display_name
+
     Display name resolution priority (ensures no duplicate rows in leaderboard):
         1. employee_master  — canonical source, used everywhere else in pipeline
         2. volunteer_details full name — fallback if volunteer not in employee_master
@@ -156,6 +163,11 @@ def _append_volunteer_rows(
         for _, r in presenter_details.iterrows()
     }
 
+    # Case-insensitive column map — built once before the row loop.
+    # Handles any casing variation in Excel headers
+    # e.g. "Session_Hosting", "session_hosting", "SESSION_HOSTING" all resolve.
+    col_map = {c.lower(): c for c in tracker.columns}
+
     for _, row in tracker.iterrows():
 
         session_id = str(row.get("Session_ID", "")).strip()
@@ -166,10 +178,12 @@ def _append_volunteer_rows(
 
         for col, points in VOLUNTEER_ROLE_POINTS.items():
 
-            if col not in tracker.columns:
+            # Case-insensitive lookup — silently skip only if column is truly absent
+            actual_col = col_map.get(col.lower())
+            if actual_col is None:
                 continue
 
-            cell = str(row.get(col, "")).strip()
+            cell = str(row.get(actual_col, "")).strip()
             if not cell or cell.lower() in ("nan", "none", ""):
                 continue
 
@@ -221,8 +235,10 @@ def _append_consecutive_bonus_rows(
     session_02 + session_03 → +5  (another +5, not cumulative per pair)
 
     Excluded from consecutive bonus eligibility:
-      - Pure volunteer rows  (Att%=0, PresPts=0, VolPts>0) — volunteer only, not attended
-      - Presenter rows       (PresPts>0) — presenting ≠ attending as a participant
+      - Pure volunteer rows       (Att%=0, PresPts=0, VolPts>0) — did not attend
+      - Presenter rows            (PresPts>0)  — presenting ≠ attending as participant
+      - Below-threshold rows      (Att_Pts=0, not presenter/volunteer) — attended
+                                  less than 5% of the session; too brief to count
 
     Host scenario:
       If a host also appears in attendance.xlsx (physically present), their
@@ -255,6 +271,12 @@ def _append_consecutive_bonus_rows(
 
         # Skip presenter rows — presenting ≠ attending as a participant
         if row[6] > 0:
+            continue
+
+        # Skip below-threshold rows — Attendance_Points == 0 means
+        # attendance_pct < 5% (lowest non-zero band). Joining briefly
+        # and immediately leaving should not count toward a streak.
+        if row[4] == 0:
             continue
 
         emp = row[2]
@@ -418,10 +440,13 @@ def process_season(logger) -> pd.DataFrame:
                         feedback_category_counter.get(value, 0) + 1
                     )
 
-        presenter_names_this_session = {
-            name.strip().lower()
-            for name in str(session["Name"]).split(",")
-            if name.strip()
+        # Build set of presenter emails for this session.
+        # Using email as the canonical key (same as employee_master, feedback,
+        # volunteer_details) — eliminates name-mismatch false negatives.
+        presenter_emails_this_session = {
+            e.strip().lower()
+            for e in str(session.get("Email", "")).split(",")
+            if e.strip() and e.strip().lower() not in ("nan", "none", "")
         }
 
         attendees = 0
@@ -443,8 +468,8 @@ def process_season(logger) -> pd.DataFrame:
                 )
                 unknown_emails_warned.add(email)
 
-            # Presenter detected — track presence and headcount only.
-            if display_name.lower() in presenter_names_this_session:
+            # Presenter detected via email — direct, canonical, mismatch-proof.
+            if email in presenter_emails_this_session:
                 participant_history_rows.append({
                     "Session_Date": start_dt.date(),
                     "Email":        email,
@@ -484,12 +509,21 @@ def process_season(logger) -> pd.DataFrame:
                 total_points,
             ])
 
-        # Presenter rows — 100 pts flat, Attendance_% = 100 (by definition)
-        for presenter_name in [
-            x.strip() for x in str(session["Name"]).split(",") if x.strip()
+        # Presenter rows — 100 pts flat, Attendance_% = 100 (by definition).
+        # Display name is resolved from employee_master via email — the same
+        # canonical key used everywhere else — so the leaderboard always shows
+        # one consistent name per person, with no risk of duplicate rows.
+        for presenter_email in [
+            e.strip().lower()
+            for e in str(session.get("Email", "")).split(",")
+            if e.strip() and e.strip().lower() not in ("nan", "none", "")
         ]:
+            presenter_display = email_to_name.get(
+                presenter_email,
+                str(session["Name"]).strip(),  # fallback if not in employee_master
+            )
             history_rows.append([
-                session_id, topic, presenter_name,
+                session_id, topic, presenter_display,
                 100, 0, 0,
                 PRESENTATION_POINTS,
                 0, 0,

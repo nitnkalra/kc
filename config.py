@@ -98,12 +98,14 @@ PARTICIPATION_RATE_PNG_PATH                = OUTPUT_FOLDER / "participation_rate
 # ===========================================================================
 
 # Attendance % -> points  (scoring.py iterates keys sorted descending)
-# Example: 92% → 25 pts, 76% → 20 pts, 40% → 5 pts, 10% → 0 pts
+# Bands are uniform +5 per tier. Below 5% (ghost joins) → 0 pts.
+# Example: 92% → 25 pts, 76% → 20 pts, 55% → 15 pts, 30% → 10 pts, 10% → 5 pts, 3% → 0 pts
 ATTENDANCE_BANDS = {
     90: 25,
     75: 20,
-    50: 10,
-    25: 5,
+    50: 15,
+    25: 10,
+    5:  5,
     0:  0,
 }
 
@@ -119,6 +121,7 @@ LEAVE_BUFFER_MINUTES = 5    # grace period before session end
 
 # +points per consecutive pair (session N attended AND session N+1 attended).
 # Resets automatically when SEASON changes — each season processes fresh.
+# Minimum attendance threshold: >= 5% (Attendance_Points > 0) required.
 # Example: session_01 + session_02 attended → +5
 #          session_02 + session_03 attended → +5  (another +5)
 CONSECUTIVE_SESSION_BONUS = 5
@@ -198,11 +201,11 @@ LEADERBOARD_WIDTH    = 1200   # px — only knob you need to touch
 LEADERBOARD_HEIGHT   = None   # px — None = auto from row count
 LEADERBOARD_MAX_ROWS = 10     # max rows shown (count, not px — does not scale)
 
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Scale factor — derived from width; drives ALL pixel values below.
 # Reference width = 1200 px  →  scale = 1.0
 # At 600 px                  →  scale = 0.5  (everything halves)
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 
 _LB_SCALE = LEADERBOARD_WIDTH / 1200
 

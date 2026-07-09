@@ -12,12 +12,13 @@ def get_attendance_points(attendance_pct: float) -> int:
     Example:
         92% -> 25 pts  (>= 90)
         76% -> 20 pts  (>= 75)
-        55% -> 10 pts  (>= 50)
-        30% ->  5 pts  (>= 25)
-         5% ->  0 pts  (>= 0)
+        55% -> 15 pts  (>= 50)
+        30% -> 10 pts  (>= 25)
+        10% ->  5 pts  (>= 5)
+         3% ->  0 pts  (>= 0)
     """
     for threshold in sorted(ATTENDANCE_BANDS.keys(), reverse=True):
         if attendance_pct >= threshold:
             return ATTENDANCE_BANDS[threshold]
 
-    return 0
+    return 0  # safety fallback — unreachable while ATTENDANCE_BANDS contains key 0
