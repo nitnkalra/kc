@@ -22,11 +22,11 @@ SEASON = "season_5"
 # Active theme — change this one value to reskin everything.
 #
 #   Available themes:
-#       power_bi_light      — white bg, blue accent           ← default
+#       power_bi_light      — white bg, blue accent
 #       power_bi_dark       — dark gray bg, blue accent
 #       power_bi_executive  — near-black bg, gold accent
 #       power_bi_innovate   — white bg, purple accent
-#       power_bi_frontier   — white bg, teal accent
+#       power_bi_frontier   — white bg, teal accent           ← default
 #       mckinsey            — white bg, deep navy + sky blue
 #       tableau             — off-white bg, muted blue series
 #       salesforce          — light gray bg, Salesforce blue
@@ -85,13 +85,24 @@ FEEDBACK_INSIGHTS_SHEET = "Feedback_Insights"
 # JSON
 LEADERBOARD_JSON_PATH = OUTPUT_FOLDER / "leaderboard.json"
 
-# PNG
+# PNG — Core charts
 LEADERBOARD_PNG_PATH                       = OUTPUT_FOLDER / "leaderboard.png"
 FEEDBACK_TREND_PNG_PATH                    = OUTPUT_FOLDER / "feedback_trend.png"
 SESSION_COUNT_PNG_PATH                     = OUTPUT_FOLDER / "session_count.png"
 EMPLOYEES_VS_PARTICIPANTS_PNG_PATH         = OUTPUT_FOLDER / "employees_vs_participants.png"
 EMPLOYEES_VS_PARTICIPANTS_MONTHLY_PNG_PATH = OUTPUT_FOLDER / "employees_vs_participants_monthly.png"
 PARTICIPATION_RATE_PNG_PATH                = OUTPUT_FOLDER / "participation_rate.png"
+SEASON_PARTICIPATION_PNG_PATH              = OUTPUT_FOLDER / "season_participation.png"
+
+# PNG — Season Participation variants (8 additional styles)
+SEASON_PARTICIPATION_LINE_PNG_PATH     = OUTPUT_FOLDER / "season_participation_line.png"
+SEASON_PARTICIPATION_LOLLIPOP_PNG_PATH = OUTPUT_FOLDER / "season_participation_lollipop.png"
+SEASON_PARTICIPATION_AREA_PNG_PATH     = OUTPUT_FOLDER / "season_participation_area.png"
+SEASON_PARTICIPATION_HBAR_PNG_PATH     = OUTPUT_FOLDER / "season_participation_hbar.png"
+SEASON_PARTICIPATION_STEP_PNG_PATH     = OUTPUT_FOLDER / "season_participation_step.png"
+SEASON_PARTICIPATION_DOT_PNG_PATH      = OUTPUT_FOLDER / "season_participation_dot.png"
+SEASON_PARTICIPATION_GAUGE_PNG_PATH    = OUTPUT_FOLDER / "season_participation_gauge.png"
+SEASON_PARTICIPATION_DELTA_PNG_PATH    = OUTPUT_FOLDER / "season_participation_delta.png"
 
 # ===========================================================================
 # SCORING RULES
@@ -110,10 +121,25 @@ ATTENDANCE_BANDS = {
 }
 
 FEEDBACK_POINTS     = 25    # flat pts for submitting feedback form
-PRESENTATION_POINTS = 100   # flat pts for presenting a session
+PRESENTATION_POINTS = 100   # flat pts for presenting a regular session
 
 JOIN_BUFFER_MINUTES  = 3    # grace period after session start
 LEAVE_BUFFER_MINUTES = 5    # grace period before session end
+
+# ===========================================================================
+# SESSION TYPES
+# ===========================================================================
+
+# Column in presenter_details.xlsx that identifies session type.
+# If column is missing or value is blank → defaults to "regular".
+SESSION_TYPE_COLUMN = "Session_Type"
+
+# Decode-It sessions — presentation pool shared equally among all presenters.
+# Regular: each presenter → PRESENTATION_POINTS (100) flat
+# Decode-It: each presenter → round(DECODE_PRESENTATION_POOL / num_presenters)
+#   2 presenters → 50 each, 3 → 33 each, 4 → 25 each
+DECODE_SESSION_TYPE      = "decode-it"
+DECODE_PRESENTATION_POOL = 100
 
 # ===========================================================================
 # CONSECUTIVE SESSION BONUS
@@ -131,7 +157,7 @@ CONSECUTIVE_SESSION_BONUS = 5
 # ===========================================================================
 
 # Column names in kc_volunteer_team.xlsx → session_activity_tracker sheet
-VOLUNTEER_HOSTING_POINTS       = 35   # Session_hosting
+VOLUNTEER_HOSTING_POINTS       = 10   # Session_hosting
 VOLUNTEER_BACKEND_POINTS       = 5    # Backend_management
 VOLUNTEER_SPEAKER_COORD_POINTS = 5    # Speaker_coordination
 VOLUNTEER_LASTMINUTE_POINTS    = 5    # Last-minute issue
@@ -143,6 +169,11 @@ VOLUNTEER_ROLE_POINTS = {
     "Last-minute issue":    VOLUNTEER_LASTMINUTE_POINTS,
 }
 
+# Host attendance — hosts are confirmed 100% present but typically do not
+# appear in attendance.xlsx. Award max-band attendance points automatically.
+# Skipped if the host already has an attendance row for this session.
+VOLUNTEER_HOST_ATTENDANCE_POINTS = 25
+
 VOLUNTEER_TRACKER_SHEET = "session_activity_tracker"
 VOLUNTEER_DETAILS_SHEET = "volunteer_details"
 
@@ -153,6 +184,11 @@ VOLUNTEER_DETAILS_SHEET = "volunteer_details"
 FEEDBACK_RATING_COLUMN   = "How would you rate today's session overall?"
 POSITIVE_RATINGS         = ["excellent", "very good"]
 FEEDBACK_CATEGORY_COLUMN = "What did you like most about the session?"
+
+# Anonymous feedback detection — emails matching any of these markers are
+# treated as unidentifiable. Points cannot be awarded but feedback counts
+# and ratings are still used for graphs (feedback_trend, session_summary).
+ANONYMOUS_EMAIL_MARKERS = ["anonymous", "anonymous@", ""]
 
 # ===========================================================================
 # BOT / SYSTEM ACCOUNT
@@ -257,6 +293,7 @@ LEADERBOARD_FONT_BADGE     = int(14 * _LB_SCALE)   # medal / badge labels
 #       - employees_vs_participants.png
 #       - employees_vs_participants_monthly.png
 #       - participation_rate.png
+#       - season_participation.png (+ 8 variant charts)
 #
 #   Actual output pixel size = inches × DPI
 #   Default: 12 × 150 = 1800 px wide, 6 × 150 = 900 px tall

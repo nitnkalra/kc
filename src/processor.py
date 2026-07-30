@@ -26,10 +26,16 @@ from config import (
     FEEDBACK_RATING_COLUMN,
     POSITIVE_RATINGS,
     FEEDBACK_CATEGORY_COLUMN,
+    ANONYMOUS_EMAIL_MARKERS,
     CONSECUTIVE_SESSION_BONUS,
     VOLUNTEER_ROLE_POINTS,
+    VOLUNTEER_HOST_ATTENDANCE_POINTS,
     VOLUNTEER_TRACKER_SHEET,
     VOLUNTEER_DETAILS_SHEET,
+    # Session types
+    SESSION_TYPE_COLUMN,
+    DECODE_SESSION_TYPE,
+    DECODE_PRESENTATION_POOL,
     # Bot
     BOT_EMAIL,
 )
@@ -113,6 +119,12 @@ def _append_volunteer_rows(
         1. employee_master  — canonical source, used everywhere else in pipeline
         2. volunteer_details full name — fallback if volunteer not in employee_master
         3. raw tracker name — last resort (should never reach this in practice)
+
+    Session hosting special rule:
+        Hosts are confirmed 100% present — they ALWAYS receive exactly 25
+        attendance points regardless of whether they appear in attendance.xlsx.
+        If the host IS in attendance with < 25 pts (e.g. late join on personal
+        ID), their existing attendance row is upgraded to 25. No double-counting.
     """
     if not VOLUNTEER_PATH.exists():
         logger.warning(
@@ -211,12 +223,50 @@ def _append_volunteer_rows(
                     or name
                 )
 
+                # -------------------------------------------------------
+                # Session hosting — host is confirmed 100% present.
+                # GUARANTEE: host ALWAYS gets exactly 25 attendance pts
+                # regardless of whether they appear in attendance.xlsx.
+                #
+                # Case A: Host NOT in attendance → add 25 via this row
+                # Case B: Host in attendance with < 25 → upgrade existing
+                #         row to 25 (e.g. late join gave only 15)
+                # Case C: Host in attendance with 25 → already correct
+                # -------------------------------------------------------
+                is_hosting = (col.lower() == "session_hosting")
+                att_pct = 0
+                att_pts = 0
+
+                if is_hosting:
+                    existing_idx = next(
+                        (i for i, r in enumerate(history_rows)
+                         if r[0] == session_id
+                         and r[2] == display_name
+                         and r[4] > 0),
+                        None,
+                    )
+                    if existing_idx is not None:
+                        # Host IS in attendance — guarantee 25 (upgrade if lower)
+                        if history_rows[existing_idx][4] < VOLUNTEER_HOST_ATTENDANCE_POINTS:
+                            old_att = history_rows[existing_idx][4]
+                            history_rows[existing_idx][3] = 100
+                            history_rows[existing_idx][4] = VOLUNTEER_HOST_ATTENDANCE_POINTS
+                            history_rows[existing_idx][9] += (
+                                VOLUNTEER_HOST_ATTENDANCE_POINTS - old_att
+                            )
+                    else:
+                        # Host NOT in attendance — award full 25 via volunteer row
+                        att_pct = 100
+                        att_pts = VOLUNTEER_HOST_ATTENDANCE_POINTS
+
+                total = att_pts + points
+
                 history_rows.append([
                     session_id, topic, display_name,
-                    0, 0, 0, 0,      # Attendance_%, Att_Pts, Feedback_Pts, Pres_Pts
-                    points,          # Volunteer_Points
-                    0,               # Consecutive_Bonus
-                    points,          # Total_Points
+                    att_pct, att_pts, 0, 0,  # Attendance_%, Att_Pts, Fb_Pts, Pres_Pts
+                    points,                   # Volunteer_Points
+                    0,                        # Consecutive_Bonus
+                    total,                    # Total_Points
                 ])
 
 
@@ -237,13 +287,15 @@ def _append_consecutive_bonus_rows(
     Excluded from consecutive bonus eligibility:
       - Pure volunteer rows       (Att%=0, PresPts=0, VolPts>0) — did not attend
       - Presenter rows            (PresPts>0)  — presenting ≠ attending as participant
+        (Exception: decode-it presenters have a SEPARATE attendance row with
+         PresPts=0 that qualifies them — the presenter row itself is still skipped)
       - Below-threshold rows      (Att_Pts=0, not presenter/volunteer) — attended
                                   less than 5% of the session; too brief to count
 
     Host scenario:
-      If a host also appears in attendance.xlsx (physically present), their
-      attendance row IS counted. Volunteer row is skipped. So a host who
-      attends consecutive sessions correctly earns the bonus.
+      Session hosts are guaranteed Att_Pts=25 (either via volunteer row or
+      upgraded attendance row). Their row IS counted toward consecutive
+      streaks automatically.
     """
     sessions = presenter_details.copy()
     sessions["Date"] = pd.to_datetime(sessions["Date"], errors="coerce")
@@ -403,8 +455,20 @@ def process_season(logger) -> pd.DataFrame:
             feedback["Email"] = (
                 feedback["Email"].astype(str).str.lower().str.strip()
             )
-            feedback_emails = set(feedback["Email"])
-            feedback_count  = len(feedback)
+            feedback_count = len(feedback)
+
+            # Filter out anonymous emails — points cannot be awarded but
+            # counts and ratings are still used for graphs.
+            feedback_emails = {
+                e for e in feedback["Email"]
+                if e not in ANONYMOUS_EMAIL_MARKERS
+            }
+            if not feedback_emails and feedback_count > 0:
+                logger.warning(
+                    f"[{session_id}] Feedback is anonymous "
+                    f"({feedback_count} responses) — "
+                    f"points skipped, graphs unaffected."
+                )
 
             # Rating column — config constant first, fuzzy fallback
             rating_col = (
@@ -449,6 +513,11 @@ def process_season(logger) -> pd.DataFrame:
             if e.strip() and e.strip().lower() not in ("nan", "none", "")
         }
 
+        # Determine session type BEFORE attendance loop —
+        # decode-it presenters receive attendance + feedback points too.
+        session_type = str(session.get(SESSION_TYPE_COLUMN, "")).strip().lower()
+        is_decode_session = (session_type == DECODE_SESSION_TYPE)
+
         attendees = 0
 
         for _, row in attendance.iterrows():
@@ -469,20 +538,30 @@ def process_season(logger) -> pd.DataFrame:
                 unknown_emails_warned.add(email)
 
             # Presenter detected via email — direct, canonical, mismatch-proof.
+            # Regular sessions: presenters get a separate presenter-only row,
+            #   so skip attendance/feedback here (avoid double-counting).
+            # Decode-it sessions: presenters ALSO earn attendance + feedback,
+            #   so fall through to the normal calculation below.
             if email in presenter_emails_this_session:
                 participant_history_rows.append({
                     "Session_Date": start_dt.date(),
                     "Email":        email,
                 })
                 attendees += 1
-                continue
+                if not is_decode_session:
+                    continue  # Regular: skip — presenter row handles it
+                # Decode-it: fall through to attendance/feedback calc
+                # (participant_history and attendees already counted above)
+            else:
+                # Non-presenter: normal participant tracking
+                participant_history_rows.append({
+                    "Session_Date": start_dt.date(),
+                    "Email":        email,
+                })
+                attendees += 1
 
-            participant_history_rows.append({
-                "Session_Date": start_dt.date(),
-                "Email":        email,
-            })
-            attendees += 1
-
+            # --- Attendance & feedback calculation (both decode-it presenters
+            #     and regular attendees reach here) ---
             try:
                 join_time  = pd.to_datetime(row["First Join"])
                 leave_time = pd.to_datetime(row["Last Leave"])
@@ -509,26 +588,58 @@ def process_season(logger) -> pd.DataFrame:
                 total_points,
             ])
 
-        # Presenter rows — 100 pts flat, Attendance_% = 100 (by definition).
-        # Display name is resolved from employee_master via email — the same
-        # canonical key used everywhere else — so the leaderboard always shows
-        # one consistent name per person, with no risk of duplicate rows.
-        for presenter_email in [
+        # ---------------------------------------------------------------
+        # Presenter rows — points determined by session type.
+        #   Regular:   each presenter → PRESENTATION_POINTS (100) flat
+        #              + marked as 100% present (display only, no att_pts)
+        #   Decode-It: pool of DECODE_PRESENTATION_POOL (100) shared
+        #              equally → round(100 / num_presenters) each
+        #              Attendance/feedback already handled above in the
+        #              attendance loop (is_decode_session → no skip).
+        #
+        # Display name is resolved from employee_master via email — the
+        # same canonical key used everywhere else — so the leaderboard
+        # always shows one consistent name per person.
+        # ---------------------------------------------------------------
+        presenter_list = [
             e.strip().lower()
             for e in str(session.get("Email", "")).split(",")
             if e.strip() and e.strip().lower() not in ("nan", "none", "")
-        ]:
+        ]
+
+        if is_decode_session and len(presenter_list) > 0:
+            pres_points = round(DECODE_PRESENTATION_POOL / len(presenter_list))
+        else:
+            pres_points = PRESENTATION_POINTS
+
+        for presenter_email in presenter_list:
             presenter_display = email_to_name.get(
                 presenter_email,
                 str(session["Name"]).strip(),  # fallback if not in employee_master
             )
-            history_rows.append([
-                session_id, topic, presenter_display,
-                100, 0, 0,
-                PRESENTATION_POINTS,
-                0, 0,
-                PRESENTATION_POINTS,
-            ])
+
+            if is_decode_session:
+                # Decode-it: presenter row carries ONLY presentation points.
+                # Attendance + feedback already in separate row from attendance loop.
+                # Att%=0 here so consecutive bonus logic correctly uses the
+                # attendance row (which has real att_pts) for streak eligibility.
+                history_rows.append([
+                    session_id, topic, presenter_display,
+                    0, 0, 0,
+                    pres_points,
+                    0, 0,
+                    pres_points,
+                ])
+            else:
+                # Regular: presenter row marks 100% present + full pres points.
+                # No separate attendance row exists for regular presenters.
+                history_rows.append([
+                    session_id, topic, presenter_display,
+                    100, 0, 0,
+                    pres_points,
+                    0, 0,
+                    pres_points,
+                ])
 
         duration_minutes = round((end_dt - start_dt).total_seconds() / 60, 2)
         session_summary_rows.append([

@@ -143,10 +143,12 @@ Volunteer roles and their points:
 
 | Role | Points |
 | --- | --- |
-| Session hosting | 10 |
+| Session hosting | 10 + 25 (attendance) = **35 total** |
 | Backend management | 5 |
 | Speaker coordination | 5 |
 | Last-minute issue handling | 5 |
+
+> **Session hosting includes automatic attendance points.** Hosts are confirmed 100% present but do not appear in `attendance.xlsx`. The system awards +25 attendance points (max band) automatically via the volunteer file. If the host happens to be in the attendance file too, the attendance points are skipped to avoid double-counting.
 
 **Name matching:** Volunteer names in `session_activity_tracker` do not need to be exact or full. Short forms are supported — for example, writing `Nitin` will automatically resolve to `Nitin Kalra` using the email mapping in the `volunteer_details` sheet. Email is always used as the canonical identifier, so as long as the name is recognisable (first name, partial name, or full name), the system will resolve it correctly. If a name is ambiguous or completely unrecognised, a warning will appear in the run log.
 
@@ -209,7 +211,7 @@ season_5/outputs/
 | Submitted feedback form | 25 |
 | Presented a session | 100 (flat) |
 | Consecutive session bonus (per pair) | +5 |
-| Volunteer — Session hosting | 10 |
+| Volunteer — Session hosting | 10 + 25 (attendance) = **35** |
 | Volunteer — Backend management | 5 |
 | Volunteer — Speaker coordination | 5 |
 | Volunteer — Last-minute issue | 5 |
@@ -219,4 +221,5 @@ season_5/outputs/
 - Attendance % is calculated against the ideal session window (start + 3 min grace → end − 5 min grace).
 - Consecutive bonus requires **≥ 5% attendance** in both sessions of the pair. Joining briefly (< 5%) does not count toward a streak.
 - Presenters receive **100 pts flat**. Attendance points and feedback points are not applicable to presenters.
-- Volunteer points stack — a volunteer who hosts AND manages backend in the same session earns 10 + 5 = 15 pts.
+- Volunteer points stack — a volunteer who hosts AND manages backend in the same session earns 35 + 5 = 40 pts.
+- **Session hosts** receive **+25 attendance points** automatically (confirmed 100% present). This is skipped if the host already appears in `attendance.xlsx` for that session. Hosts also qualify for the consecutive session bonus.

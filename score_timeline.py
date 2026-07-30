@@ -31,6 +31,7 @@ from config import (
     PRESENTER_DETAILS_PATH,
     SCORE_TIMELINE_PATH,
     OUTPUT_FOLDER,
+    SESSION_TYPE_COLUMN,
 )
 
 # Point columns coming from the history DataFrame
@@ -64,6 +65,22 @@ def _resolve_session_date(
         second = sid.split(_ARROW)[1].strip()
         return date_map.get(second)
     return date_map.get(sid)
+
+
+def _resolve_session_type(
+    session_id: str,
+    type_map: dict,
+) -> str:
+    """
+    Return the session type label for a given Session_ID.
+
+    Consecutive-bonus rows ("session_01 → session_02") → empty string
+    (not tied to a single session type).
+    """
+    sid = session_id.strip()
+    if _ARROW in sid:
+        return ""
+    return type_map.get(sid, "regular")
 
 
 def _build_session_sheet(
@@ -146,6 +163,17 @@ def build_score_timeline(history: pd.DataFrame, logger) -> pd.DataFrame:
 
     date_map: dict = dict(zip(presenter["Session_ID"], presenter["Date"]))
 
+    # --- Build session_id → session_type map ---
+    # If Session_Type column is missing from presenter_details, default all to "regular"
+    if SESSION_TYPE_COLUMN in presenter.columns:
+        type_map: dict = {
+            str(r["Session_ID"]).strip():
+            str(r.get(SESSION_TYPE_COLUMN, "")).strip().lower() or "regular"
+            for _, r in presenter.iterrows()
+        }
+    else:
+        type_map = {sid: "regular" for sid in date_map}
+
     # --- Assign a date to every history row ---
     df["Session_Date"] = df["Session_ID"].apply(
         lambda sid: _resolve_session_date(sid, date_map)
@@ -189,9 +217,15 @@ def build_score_timeline(history: pd.DataFrame, logger) -> pd.DataFrame:
         .cumsum()
     )
 
+    # --- Add Session_Type column ---
+    timeline["Session_Type"] = timeline["Session_ID"].apply(
+        lambda sid: _resolve_session_type(sid, type_map)
+    )
+
     timeline = timeline[[
         "Employee",
         "Session_ID",
+        "Session_Type",
         "Session_Date",
         "Attendance_Points",
         "Feedback_Points",
