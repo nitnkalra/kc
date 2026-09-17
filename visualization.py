@@ -12,7 +12,11 @@ from config import (
     CHART_FIGSIZE,
     CHART_DPI,
     # Input paths
-    PRESENTER_DETAILS_PATH,
+    KC_ROOT,
+    SEASON,
+    SEASON_FOLDER,
+    ATTENDANCE_FILE,
+    BOT_EMAIL,
     ALL_SESSIONS_PATH,
     PARTICIPANT_HISTORY_PATH,
     EMPLOYEE_MASTER_PATH,
@@ -85,6 +89,47 @@ def _style_axes(ax, fig):
     ax.spines["bottom"].set_color(GRID_COLOR)
 
 
+def _derive_session_dates(all_time: bool = False) -> dict:
+    """
+    Build {Session_ID: Date} mapping by reading KC bot timestamps from
+    each session's attendance.xlsx.
+
+    Args:
+        all_time: If True, derive dates for ALL sessions across all seasons.
+                  If False (default), only current season.
+
+    Returns dict of session_id → pd.Timestamp.
+    """
+    all_sessions = pd.read_excel(ALL_SESSIONS_PATH)
+    all_sessions = all_sessions.rename(columns=str.strip)
+    all_sessions["Season"] = all_sessions["Season"].astype(str).str.strip()
+
+    if not all_time:
+        all_sessions = all_sessions[
+            all_sessions["Season"].str.lower() == SEASON.lower()
+        ]
+
+    dates = {}
+    for _, row in all_sessions.iterrows():
+        sid = str(row["Session_ID"]).strip()
+        season = str(row["Season"]).strip()
+        season_folder = KC_ROOT / season
+        att_file = season_folder / sid / ATTENDANCE_FILE
+        if not att_file.exists():
+            continue
+        att = pd.read_excel(att_file)
+        att = att.rename(columns=str.strip)
+        att["Email"] = att["Email"].astype(str).str.lower().str.strip()
+        bot = att[att["Email"] == BOT_EMAIL]
+        if bot.empty:
+            continue
+        try:
+            dates[sid] = pd.to_datetime(bot.iloc[0]["First Join"])
+        except (ValueError, TypeError, KeyError):
+            continue
+    return dates
+
+
 def _load_season_participation_data() -> "pd.DataFrame | None":
     """
     Load and prepare season participation data — shared by all 9 chart variants.
@@ -105,33 +150,22 @@ def _load_season_participation_data() -> "pd.DataFrame | None":
     if session_summary.empty:
         return None
 
-    presenter = pd.read_excel(PRESENTER_DETAILS_PATH)
-    presenter = presenter.rename(columns=str.strip)
-    presenter["Session_ID"] = presenter["Session_ID"].astype(str).str.strip()
+    # Derive dates from attendance KC bot timestamps
+    session_dates = _derive_session_dates()
     session_summary["Session_ID"] = (
         session_summary["Session_ID"].astype(str).str.strip()
     )
-
-    merged = session_summary.merge(
-        presenter[["Session_ID", "Date"]],
-        on="Session_ID",
-        how="left",
-    )
-    merged["Date"] = pd.to_datetime(merged["Date"], errors="coerce")
+    session_summary["Date"] = session_summary["Session_ID"].map(session_dates)
+    merged = session_summary.dropna(subset=["Date"]).copy()
+    merged["Date"] = pd.to_datetime(merged["Date"])
     merged = merged.sort_values("Date").reset_index(drop=True)
 
     merged["Rate"] = (merged["Attendees"] / total_employees * 100).apply(
         lambda v: int(round(v))
     )
 
-    def _short_topic(topic: str, max_len: int = 22) -> str:
-        topic = str(topic).strip()
-        return topic if len(topic) <= max_len else topic[:max_len - 1] + "\u2026"
-
-    merged["Label"] = merged.apply(
-        lambda r: f"{_short_topic(r['Topic'])}\n{r['Date'].strftime('%d %b')}",
-        axis=1,
-    )
+    # Date-only label — avoids topic overlap on x-axis
+    merged["Label"] = merged["Date"].dt.strftime("%d %b")
 
     return merged
 
@@ -148,18 +182,15 @@ def generate_feedback_trend_png():
     session_summary = pd.read_excel(
         SESSION_SUMMARY_PATH, sheet_name=SESSION_SUMMARY_SHEET
     )
-    presenter = pd.read_excel(PRESENTER_DETAILS_PATH)
     session_summary = session_summary.rename(columns=str.strip)
-    presenter       = presenter.rename(columns=str.strip)
-
     session_summary["Session_ID"] = (
         session_summary["Session_ID"].astype(str).str.strip()
     )
-    presenter["Session_ID"] = presenter["Session_ID"].astype(str).str.strip()
 
-    merged = session_summary.merge(
-        presenter[["Session_ID", "Date"]], on="Session_ID", how="left"
-    )
+    # Derive dates from attendance KC bot timestamps
+    session_dates = _derive_session_dates()
+    session_summary["Date"] = session_summary["Session_ID"].map(session_dates)
+    merged = session_summary.copy()
     merged["Date"] = pd.to_datetime(merged["Date"])
     merged = (
         merged[merged["Feedback_Count"] > 0]
@@ -221,8 +252,12 @@ def generate_session_count_png():
 
     OUTPUT_FOLDER.mkdir(exist_ok=True)
 
-    all_sessions = pd.read_excel(ALL_SESSIONS_PATH)
-    all_sessions = all_sessions.rename(columns=str.strip)
+    # Derive dates from attendance KC bot timestamps (all-time)
+    session_dates = _derive_session_dates(all_time=True)
+    all_sessions = pd.DataFrame(
+        [(sid, dt) for sid, dt in session_dates.items()],
+        columns=["Session_ID", "Date"],
+    )
     all_sessions["Date"]  = pd.to_datetime(all_sessions["Date"])
     all_sessions["Month"] = all_sessions["Date"].dt.to_period("M")
 
@@ -482,7 +517,7 @@ def generate_season_participation_png():
         return None
 
     x = list(range(len(merged)))
-    bar_width = 0.35
+    bar_width = 0.5
 
     # --- Plot ---
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -519,7 +554,7 @@ def generate_season_participation_png():
             label_y,
             f"{rate_val}%",
             ha="center", va=label_va,
-            color=label_color, fontsize=15, fontweight="bold",
+            color=label_color, fontsize=10, fontweight="bold",
             zorder=6,
         )
 

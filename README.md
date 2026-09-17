@@ -103,35 +103,24 @@ Open `all_session_details.xlsx` located at the `KC_ROOT` level (not inside any s
 KC_ROOT/all_session_details.xlsx
 ```
 
-Fields to fill: session ID, date, topic, and any other required columns.
-
----
-
-### Step 5 — Update Presenter Details
-
-Every session must have a row in `presenter_details.xlsx` inside the active season folder. Open the file and add a new row for this session.
-
-```
-season_5/presenter_details.xlsx
-```
-
 Required columns to fill for each session:
 
 | Column | Description |
 | --- | --- |
+| `Season` | Active season (e.g. `season_5`) |
 | `Session_ID` | Must match the session folder name (e.g. `session_06`) |
 | `Name` | Presenter's display name |
 | `Email` | **Presenter's email — must match `employee_master.xlsx`** |
 | `Topic` | Session topic |
-| `Date` | Session date |
-| `Start Time` | Session start time |
-| `End Time` | Session end time |
+| `Session_Type` | Type of session (e.g. `presentation`, `decode`) |
 
 > **Email is mandatory.** Presenter detection and score assignment are email-based. A missing or mismatched email will cause the presenter to be treated as a regular attendee and result in incorrect scores.
 
+> **Date & Time are auto-derived.** The system calculates session date, start time, and end time from the KC bot (`knowledge_club@inxiteout.ai`) join/leave timestamps in `attendance.xlsx`.
+
 ---
 
-### Step 6 — Update Volunteer Records
+### Step 5 — Update Volunteer Records
 
 Open `kc_volunteer_team.xlsx` inside the active season folder. Switch to the `session_activity_tracker` sheet and add entries for all volunteers who participated in this session.
 
@@ -156,7 +145,7 @@ Volunteer roles and their points:
 
 ---
 
-### Step 7 — Run the Pipeline
+### Step 6 — Run the Pipeline
 
 Once all files are in place, run the main script from the `kc/` directory.
 
@@ -218,7 +207,7 @@ season_5/outputs/
 
 **Notes:**
 
-- Attendance % is calculated against the ideal session window (start + 3 min grace → end − 5 min grace).
+- Attendance % is calculated against the ideal session window (start + 3 min grace → end − 5 min grace). Start/end are auto-derived from the KC bot’s join/leave timestamps in `attendance.xlsx`.
 - Consecutive bonus requires **≥ 5% attendance** in both sessions of the pair. Joining briefly (< 5%) does not count toward a streak.
 - Presenters receive **100 pts flat**. Attendance points and feedback points are not applicable to presenters.
 - Volunteer points stack — a volunteer who hosts AND manages backend in the same session earns 35 + 5 = 40 pts.

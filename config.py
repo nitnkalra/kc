@@ -47,9 +47,8 @@ SEASON_FOLDER = KC_ROOT / SEASON
 # Input paths — inside SEASON_FOLDER
 # ---------------------------------------------------------------------------
 
-EMPLOYEE_MASTER_PATH   = SEASON_FOLDER / "employee_master.xlsx"
-PRESENTER_DETAILS_PATH = SEASON_FOLDER / "presenter_details.xlsx"
-VOLUNTEER_PATH         = SEASON_FOLDER / "kc_volunteer_team.xlsx"
+EMPLOYEE_MASTER_PATH = SEASON_FOLDER / "employee_master.xlsx"
+VOLUNTEER_PATH       = SEASON_FOLDER / "kc_volunteer_team.xlsx"
 
 # Session sub-folder file names (joined dynamically with session_id at runtime)
 # Usage: SEASON_FOLDER / session_id / ATTENDANCE_FILE
@@ -130,7 +129,7 @@ LEAVE_BUFFER_MINUTES = 5    # grace period before session end
 # SESSION TYPES
 # ===========================================================================
 
-# Column in presenter_details.xlsx that identifies session type.
+# Column in all_session_details.xlsx that identifies session type.
 # If column is missing or value is blank → defaults to "regular".
 SESSION_TYPE_COLUMN = "Session_Type"
 

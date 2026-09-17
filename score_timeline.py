@@ -11,7 +11,7 @@ Sheet layout
   Timeline      → Full chronological history, one row per (Employee, Session).
   session_01    → All employees' score breakdown for session_01.
   session_02    → Same for session_02  (includes consecutive-bonus rows).
-  …             → One sheet per session in presenter_details.
+  …             → One sheet per session in all_session_details.
 
 Per-session sheet columns
 --------------------------
@@ -28,7 +28,11 @@ Per-session sheet columns
 import pandas as pd
 
 from config import (
-    PRESENTER_DETAILS_PATH,
+    ALL_SESSIONS_PATH,
+    SEASON,
+    SEASON_FOLDER,
+    ATTENDANCE_FILE,
+    BOT_EMAIL,
     SCORE_TIMELINE_PATH,
     OUTPUT_FOLDER,
     SESSION_TYPE_COLUMN,
@@ -151,25 +155,43 @@ def build_score_timeline(history: pd.DataFrame, logger) -> pd.DataFrame:
     df = history.copy()
     df["Session_ID"] = df["Session_ID"].astype(str).str.strip()
 
-    # --- Load presenter details for session → date mapping ---
-    presenter = pd.read_excel(PRESENTER_DETAILS_PATH)
-    presenter = presenter.rename(columns=str.strip)
-    presenter["Session_ID"] = presenter["Session_ID"].astype(str).str.strip()
-    # Normalize to midnight to strip any time component from Excel dates
-    presenter["Date"] = pd.to_datetime(
-        presenter["Date"], errors="coerce"
-    ).dt.normalize()
-    presenter = presenter.dropna(subset=["Date"]).sort_values("Date")
+    # --- Derive session dates from attendance KC bot timestamps ---
+    all_sessions = pd.read_excel(ALL_SESSIONS_PATH)
+    all_sessions = all_sessions.rename(columns=str.strip)
+    all_sessions["Season"] = all_sessions["Season"].astype(str).str.strip()
+    all_sessions["Session_ID"] = (
+        all_sessions["Session_ID"].astype(str).str.strip()
+    )
+    current_sessions = all_sessions[
+        all_sessions["Season"].str.lower() == SEASON.lower()
+    ]
 
-    date_map: dict = dict(zip(presenter["Session_ID"], presenter["Date"]))
+    date_map: dict = {}
+    for _, row in current_sessions.iterrows():
+        sid = str(row["Session_ID"]).strip()
+        att_file = SEASON_FOLDER / sid / ATTENDANCE_FILE
+        if not att_file.exists():
+            continue
+        att = pd.read_excel(att_file)
+        att = att.rename(columns=str.strip)
+        att["Email"] = att["Email"].astype(str).str.lower().str.strip()
+        bot = att[att["Email"] == BOT_EMAIL]
+        if bot.empty:
+            continue
+        try:
+            date_map[sid] = pd.to_datetime(
+                bot.iloc[0]["First Join"]
+            ).normalize()
+        except (ValueError, TypeError, KeyError):
+            continue
 
     # --- Build session_id → session_type map ---
-    # If Session_Type column is missing from presenter_details, default all to "regular"
-    if SESSION_TYPE_COLUMN in presenter.columns:
+    # If Session_Type column is missing from all_session_details, default to "regular"
+    if SESSION_TYPE_COLUMN in current_sessions.columns:
         type_map: dict = {
             str(r["Session_ID"]).strip():
             str(r.get(SESSION_TYPE_COLUMN, "")).strip().lower() or "regular"
-            for _, r in presenter.iterrows()
+            for _, r in current_sessions.iterrows()
         }
     else:
         type_map = {sid: "regular" for sid in date_map}
@@ -244,9 +266,7 @@ def build_score_timeline(history: pd.DataFrame, logger) -> pd.DataFrame:
 
         # Per-session sheets — score breakdown per employee, sorted by name
         sheets_written = 0
-        for _, session_row in presenter.iterrows():
-            sid    = str(session_row["Session_ID"]).strip()
-            s_date = session_row["Date"]
+        for sid, s_date in sorted(date_map.items(), key=lambda x: x[1]):
 
             session_df = _build_session_sheet(timeline, s_date)
 

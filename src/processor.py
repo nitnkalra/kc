@@ -4,9 +4,10 @@ from datetime import timedelta
 
 from config import (
     # Paths
+    SEASON,
     SEASON_FOLDER,
     EMPLOYEE_MASTER_PATH,
-    PRESENTER_DETAILS_PATH,
+    ALL_SESSIONS_PATH,
     VOLUNTEER_PATH,
     PARTICIPANT_HISTORY_PATH,
     ATTENDANCE_FILE,
@@ -41,6 +42,53 @@ from config import (
 )
 
 from src.scoring import get_attendance_points
+
+
+# ---------------------------------------------------------------------------
+# Time derivation from attendance KC bot rows
+# ---------------------------------------------------------------------------
+
+def _derive_session_times(
+    attendance_file: "Path",
+    logger,
+) -> "tuple[pd.Timestamp, pd.Timestamp, pd.DataFrame] | None":
+    """
+    Derive session start and end times from the KC bot's join/leave timestamps
+    in attendance.xlsx.
+
+    The KC bot (knowledge_club@inxiteout.ai) hosts every session via Teams.
+    Its 'First Join' = session start, 'Last Leave' = session end.
+
+    Returns (start_dt, end_dt, attendance_df) or None if the bot is not found /
+    timestamps cannot be parsed. The attendance_df is returned pre-processed
+    (columns stripped, Email lowered) to avoid re-reading the file in the main loop.
+    """
+    attendance = pd.read_excel(attendance_file)
+    attendance = attendance.rename(columns=str.strip)
+    attendance["Email"] = (
+        attendance["Email"].astype(str).str.lower().str.strip()
+    )
+
+    bot_rows = attendance[attendance["Email"] == BOT_EMAIL]
+
+    if bot_rows.empty:
+        logger.warning(
+            f"KC bot ({BOT_EMAIL}) not found in {attendance_file.name} "
+            f"— cannot derive session times."
+        )
+        return None
+
+    try:
+        # Use the first bot row (normally only one exists)
+        bot_row = bot_rows.iloc[0]
+        start_dt = pd.to_datetime(bot_row["First Join"])
+        end_dt = pd.to_datetime(bot_row["Last Leave"])
+        return start_dt, end_dt, attendance
+    except (ValueError, TypeError, KeyError) as e:
+        logger.error(
+            f"Failed to parse KC bot timestamps in {attendance_file.name}: {e}"
+        )
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +148,7 @@ def _resolve_volunteer_email(
 
 def _append_volunteer_rows(
     history_rows: list,
-    presenter_details: pd.DataFrame,
+    session_details: pd.DataFrame,
     email_to_name: dict,
     logger,
 ) -> None:
@@ -172,7 +220,7 @@ def _append_volunteer_rows(
     # session_id → topic
     session_topics = {
         str(r["Session_ID"]).strip(): str(r["Topic"]).strip()
-        for _, r in presenter_details.iterrows()
+        for _, r in session_details.iterrows()
     }
 
     # Case-insensitive column map — built once before the row loop.
@@ -276,7 +324,7 @@ def _append_volunteer_rows(
 
 def _append_consecutive_bonus_rows(
     history_rows: list,
-    presenter_details: pd.DataFrame,
+    session_dates: dict,
 ) -> None:
     """
     Award CONSECUTIVE_SESSION_BONUS per consecutive session pair attended.
@@ -284,26 +332,29 @@ def _append_consecutive_bonus_rows(
     session_01 + session_02 → +5
     session_02 + session_03 → +5  (another +5, not cumulative per pair)
 
+    Args:
+        history_rows: accumulated history rows from processing.
+        session_dates: dict mapping session_id → datetime (derived from
+                       KC bot attendance timestamps). Used to order sessions
+                       chronologically.
+
     Excluded from consecutive bonus eligibility:
       - Pure volunteer rows       (Att%=0, PresPts=0, VolPts>0) — did not attend
       - Presenter rows            (PresPts>0)  — presenting ≠ attending as participant
         (Exception: decode-it presenters have a SEPARATE attendance row with
          PresPts=0 that qualifies them — the presenter row itself is still skipped)
       - Below-threshold rows      (Att_Pts=0, not presenter/volunteer) — attended
-                                  less than 5% of the session; too brief to count
+                                   less than 5% of the session; too brief to count
 
     Host scenario:
       Session hosts are guaranteed Att_Pts=25 (either via volunteer row or
       upgraded attendance row). Their row IS counted toward consecutive
       streaks automatically.
     """
-    sessions = presenter_details.copy()
-    sessions["Date"] = pd.to_datetime(sessions["Date"], errors="coerce")
-    sessions = sessions.dropna(subset=["Date"]).sort_values("Date")
-
-    session_order = (
-        sessions["Session_ID"].astype(str).str.strip().tolist()
-    )
+    # Sort sessions chronologically using derived dates
+    session_order = [
+        sid for sid, _ in sorted(session_dates.items(), key=lambda x: x[1])
+    ]
 
     if len(session_order) < 2:
         return
@@ -359,8 +410,9 @@ def process_season(logger) -> pd.DataFrame:
     """
     Process all sessions in SEASON_FOLDER and write output files.
 
-    Reads:  employee_master, presenter_details, per-session attendance/feedback,
+    Reads:  employee_master, all_session_details, per-session attendance/feedback,
             kc_volunteer_team (optional)
+    Derives: session date/start/end from KC bot timestamps in attendance.xlsx
     Writes: Leaderboard.xlsx, Session_Summary.xlsx,
             leaderboard.json, all_participant_history.xlsx (appended)
 
@@ -397,21 +449,27 @@ def process_season(logger) -> pd.DataFrame:
 
     logger.info("Input files loaded successfully")
 
-    # --- Presenter details ---
-    presenter_details = pd.read_excel(PRESENTER_DETAILS_PATH)
-    presenter_details = presenter_details.rename(columns=str.strip)
+    # --- Session details (unified source — replaces presenter_details) ---
+    all_sessions = pd.read_excel(ALL_SESSIONS_PATH)
+    all_sessions = all_sessions.rename(columns=str.strip)
+    # Filter to current season only
+    all_sessions["Season"] = all_sessions["Season"].astype(str).str.strip()
+    session_details = all_sessions[
+        all_sessions["Season"].str.lower() == SEASON.lower()
+    ].reset_index(drop=True)
 
     history_rows: list = []
     feedback_category_counter: dict = {}
     session_summary_rows: list = []
     participant_history_rows: list = []
+    session_dates: dict = {}  # session_id → start_dt (for consecutive bonus ordering)
 
     # Tracks emails already warned about — avoids repeating the same
     # warning across multiple sessions for the same unknown email.
     unknown_emails_warned: set = set()
 
     # --- Process each session ---
-    for _, session in presenter_details.iterrows():
+    for _, session in session_details.iterrows():
 
         session_id = str(session["Session_ID"]).strip()
         topic      = str(session["Topic"]).strip()
@@ -424,26 +482,20 @@ def process_season(logger) -> pd.DataFrame:
             logger.error(f"Attendance missing: {session_id}")
             continue
 
-        try:
-            start_dt = pd.to_datetime(
-                f"{session['Date']} {session['Start Time']}"
+        # Derive session times from KC bot attendance timestamps
+        # Also returns pre-processed attendance DataFrame (avoids double-read)
+        result = _derive_session_times(attendance_file, logger)
+        if result is None:
+            logger.error(
+                f"{session_id}: cannot derive session times — skipping."
             )
-            end_dt = pd.to_datetime(
-                f"{session['Date']} {session['End Time']}"
-            )
-        except Exception as e:
-            logger.error(f"{session_id} datetime error: {e}")
             continue
+        start_dt, end_dt, attendance = result
+        session_dates[session_id] = start_dt  # for consecutive bonus ordering
 
         ideal_start   = start_dt + timedelta(minutes=JOIN_BUFFER_MINUTES)
         ideal_end     = end_dt   - timedelta(minutes=LEAVE_BUFFER_MINUTES)
         ideal_seconds = max((ideal_end - ideal_start).total_seconds(), 1)
-
-        attendance = pd.read_excel(attendance_file)
-        attendance = attendance.rename(columns=str.strip)
-        attendance["Email"] = (
-            attendance["Email"].astype(str).str.lower().str.strip()
-        )
 
         feedback_emails         = set()
         positive_feedback_count = 0
@@ -649,9 +701,9 @@ def process_season(logger) -> pd.DataFrame:
 
     # --- Volunteer and consecutive bonus ---
     _append_volunteer_rows(
-        history_rows, presenter_details, email_to_name, logger
+        history_rows, session_details, email_to_name, logger
     )
-    _append_consecutive_bonus_rows(history_rows, presenter_details)
+    _append_consecutive_bonus_rows(history_rows, session_dates)
 
     # --- Build DataFrames ---
     history = pd.DataFrame(
