@@ -92,16 +92,7 @@ EMPLOYEES_VS_PARTICIPANTS_PNG_PATH         = OUTPUT_FOLDER / "employees_vs_parti
 EMPLOYEES_VS_PARTICIPANTS_MONTHLY_PNG_PATH = OUTPUT_FOLDER / "employees_vs_participants_monthly.png"
 PARTICIPATION_RATE_PNG_PATH                = OUTPUT_FOLDER / "participation_rate.png"
 SEASON_PARTICIPATION_PNG_PATH              = OUTPUT_FOLDER / "season_participation.png"
-
-# PNG — Season Participation variants (8 additional styles)
-SEASON_PARTICIPATION_LINE_PNG_PATH     = OUTPUT_FOLDER / "season_participation_line.png"
-SEASON_PARTICIPATION_LOLLIPOP_PNG_PATH = OUTPUT_FOLDER / "season_participation_lollipop.png"
-SEASON_PARTICIPATION_AREA_PNG_PATH     = OUTPUT_FOLDER / "season_participation_area.png"
-SEASON_PARTICIPATION_HBAR_PNG_PATH     = OUTPUT_FOLDER / "season_participation_hbar.png"
-SEASON_PARTICIPATION_STEP_PNG_PATH     = OUTPUT_FOLDER / "season_participation_step.png"
-SEASON_PARTICIPATION_DOT_PNG_PATH      = OUTPUT_FOLDER / "season_participation_dot.png"
-SEASON_PARTICIPATION_GAUGE_PNG_PATH    = OUTPUT_FOLDER / "season_participation_gauge.png"
-SEASON_PARTICIPATION_DELTA_PNG_PATH    = OUTPUT_FOLDER / "season_participation_delta.png"
+SEASON_PARTICIPATION_HBAR_PNG_PATH         = OUTPUT_FOLDER / "season_participation_hbar.png"
 
 # ===========================================================================
 # SCORING RULES

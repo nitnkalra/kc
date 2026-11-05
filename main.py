@@ -8,14 +8,7 @@ from config import (
     EMPLOYEES_VS_PARTICIPANTS_MONTHLY_PNG_PATH,
     PARTICIPATION_RATE_PNG_PATH,
     SEASON_PARTICIPATION_PNG_PATH,
-    SEASON_PARTICIPATION_LINE_PNG_PATH,
-    SEASON_PARTICIPATION_LOLLIPOP_PNG_PATH,
-    SEASON_PARTICIPATION_AREA_PNG_PATH,
     SEASON_PARTICIPATION_HBAR_PNG_PATH,
-    SEASON_PARTICIPATION_STEP_PNG_PATH,
-    SEASON_PARTICIPATION_DOT_PNG_PATH,
-    SEASON_PARTICIPATION_GAUGE_PNG_PATH,
-    SEASON_PARTICIPATION_DELTA_PNG_PATH,
     SCORE_TIMELINE_PATH,
 )
 from src.logger import get_logger
@@ -29,14 +22,7 @@ from visualization import (
     generate_employees_vs_participants_monthly_png,
     generate_participation_rate_png,
     generate_season_participation_png,
-    generate_season_participation_line_png,
-    generate_season_participation_lollipop_png,
-    generate_season_participation_area_png,
     generate_season_participation_hbar_png,
-    generate_season_participation_step_png,
-    generate_season_participation_dot_png,
-    generate_season_participation_gauge_png,
-    generate_season_participation_delta_png,
 )
 
 
@@ -78,30 +64,8 @@ def main():
         generate_season_participation_png()
         logger.info(f"PNG saved — {SEASON_PARTICIPATION_PNG_PATH.name}")
 
-        # 5. Season Participation — 8 variant charts
-        generate_season_participation_line_png()
-        logger.info(f"PNG saved — {SEASON_PARTICIPATION_LINE_PNG_PATH.name}")
-
-        generate_season_participation_lollipop_png()
-        logger.info(f"PNG saved — {SEASON_PARTICIPATION_LOLLIPOP_PNG_PATH.name}")
-
-        generate_season_participation_area_png()
-        logger.info(f"PNG saved — {SEASON_PARTICIPATION_AREA_PNG_PATH.name}")
-
         generate_season_participation_hbar_png()
         logger.info(f"PNG saved — {SEASON_PARTICIPATION_HBAR_PNG_PATH.name}")
-
-        generate_season_participation_step_png()
-        logger.info(f"PNG saved — {SEASON_PARTICIPATION_STEP_PNG_PATH.name}")
-
-        generate_season_participation_dot_png()
-        logger.info(f"PNG saved — {SEASON_PARTICIPATION_DOT_PNG_PATH.name}")
-
-        generate_season_participation_gauge_png()
-        logger.info(f"PNG saved — {SEASON_PARTICIPATION_GAUGE_PNG_PATH.name}")
-
-        generate_season_participation_delta_png()
-        logger.info(f"PNG saved — {SEASON_PARTICIPATION_DELTA_PNG_PATH.name}")
 
         logger.info("Process completed successfully")
 

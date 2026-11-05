@@ -30,15 +30,7 @@ from config import (
     EMPLOYEES_VS_PARTICIPANTS_MONTHLY_PNG_PATH,
     PARTICIPATION_RATE_PNG_PATH,
     SEASON_PARTICIPATION_PNG_PATH,
-    # Season participation variants
-    SEASON_PARTICIPATION_LINE_PNG_PATH,
-    SEASON_PARTICIPATION_LOLLIPOP_PNG_PATH,
-    SEASON_PARTICIPATION_AREA_PNG_PATH,
     SEASON_PARTICIPATION_HBAR_PNG_PATH,
-    SEASON_PARTICIPATION_STEP_PNG_PATH,
-    SEASON_PARTICIPATION_DOT_PNG_PATH,
-    SEASON_PARTICIPATION_GAUGE_PNG_PATH,
-    SEASON_PARTICIPATION_DELTA_PNG_PATH,
 )
 
 
@@ -516,11 +508,18 @@ def generate_season_participation_png():
     if merged is None:
         return None
 
-    x = list(range(len(merged)))
-    bar_width = 0.5
+    n = len(merged)
+    x = list(range(n))
+
+    # --- Auto-scale: CHART_FIGSIZE as base, grows for many bars ---
+    fig_w = max(CHART_FIGSIZE[0], n * 0.7)
+    fig_h = CHART_FIGSIZE[1]
+    bar_width = max(0.35, min(0.5, 6.0 / max(n, 1)))
+    label_fs = max(7, min(10, 120 // max(n, 1)))
+    xtick_fs = max(7, min(9, 100 // max(n, 1)))
 
     # --- Plot ---
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     _style_axes(ax, fig)
 
     # Background bars — represent 100% capacity (clearly light/pale)
@@ -554,7 +553,7 @@ def generate_season_participation_png():
             label_y,
             f"{rate_val}%",
             ha="center", va=label_va,
-            color=label_color, fontsize=10, fontweight="bold",
+            color=label_color, fontsize=label_fs, fontweight="bold",
             zorder=6,
         )
 
@@ -565,7 +564,9 @@ def generate_season_participation_png():
     ax.set_xlabel("Session", color=TEXT_COLOR, fontsize=11)
     ax.set_ylabel("Participation %", color=TEXT_COLOR, fontsize=11)
     ax.set_xticks(x)
-    ax.set_xticklabels(merged["Label"].values, fontsize=9)
+    ax.set_xticklabels(merged["Label"].values, fontsize=xtick_fs)
+    if n > 8:
+        plt.xticks(rotation=45, ha="right")
     ax.set_ylim(bottom=0, top=105)
     ax.set_yticks([0, 25, 50, 75, 100])
     ax.grid(True, color=GRID_COLOR, linewidth=0.4, alpha=0.5, axis="y")
@@ -580,180 +581,7 @@ def generate_season_participation_png():
 
 
 # ---------------------------------------------------------------------------
-# 7. Season Participation — LINE CHART (trend-focused)
-# ---------------------------------------------------------------------------
-
-def generate_season_participation_line_png():
-    """Line chart with large markers — emphasizes trend direction."""
-
-    OUTPUT_FOLDER.mkdir(exist_ok=True)
-
-    merged = _load_season_participation_data()
-    if merged is None:
-        return None
-
-    x = list(range(len(merged)))
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    _style_axes(ax, fig)
-
-    ax.plot(
-        x, merged["Rate"].values,
-        color=ACCENT_COLOR, marker="D", markersize=12,
-        linewidth=3, markeredgecolor="white", markeredgewidth=2,
-        zorder=4,
-    )
-
-    # % label above each marker
-    for i, rate in enumerate(merged["Rate"].values):
-        ax.text(
-            i, rate + 3, f"{rate}%",
-            ha="center", va="bottom",
-            color=ACCENT_COLOR, fontsize=13, fontweight="bold",
-        )
-
-    # Subtle fill below line
-    ax.fill_between(x, merged["Rate"].values, alpha=0.12, color=ACCENT_COLOR)
-
-    ax.set_title(
-        "Season Participation",
-        color=ACCENT_COLOR, fontsize=15, fontweight="bold", pad=14,
-    )
-    ax.set_xlabel("Session", color=TEXT_COLOR, fontsize=11)
-    ax.set_ylabel("Participation %", color=TEXT_COLOR, fontsize=11)
-    ax.set_xticks(x)
-    ax.set_xticklabels(merged["Label"].values, fontsize=9)
-    ax.set_ylim(bottom=0, top=105)
-    ax.set_yticks([0, 25, 50, 75, 100])
-    ax.grid(True, color=GRID_COLOR, linewidth=0.4, alpha=0.5)
-    plt.tight_layout()
-
-    fig.savefig(
-        SEASON_PARTICIPATION_LINE_PNG_PATH, dpi=CHART_DPI,
-        facecolor=BG_COLOR, bbox_inches="tight",
-    )
-    plt.close(fig)
-    return SEASON_PARTICIPATION_LINE_PNG_PATH
-
-
-# ---------------------------------------------------------------------------
-# 8. Season Participation — LOLLIPOP CHART (modern minimal)
-# ---------------------------------------------------------------------------
-
-def generate_season_participation_lollipop_png():
-    """Lollipop chart — vertical stems with circles. Clean and modern."""
-
-    OUTPUT_FOLDER.mkdir(exist_ok=True)
-
-    merged = _load_season_participation_data()
-    if merged is None:
-        return None
-
-    x = list(range(len(merged)))
-    rates = merged["Rate"].values
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    _style_axes(ax, fig)
-
-    # Stems
-    ax.vlines(x, ymin=0, ymax=rates, color=ACCENT_COLOR, linewidth=3, zorder=3)
-
-    # Circles at top
-    ax.scatter(
-        x, rates,
-        color=ACCENT_COLOR, s=200, zorder=4,
-        edgecolors="white", linewidths=2,
-    )
-
-    # % labels above circles
-    for i, rate in enumerate(rates):
-        ax.text(
-            i, rate + 3, f"{rate}%",
-            ha="center", va="bottom",
-            color=ACCENT_COLOR, fontsize=13, fontweight="bold",
-        )
-
-    ax.set_title(
-        "Season Participation",
-        color=ACCENT_COLOR, fontsize=15, fontweight="bold", pad=14,
-    )
-    ax.set_xlabel("Session", color=TEXT_COLOR, fontsize=11)
-    ax.set_ylabel("Participation %", color=TEXT_COLOR, fontsize=11)
-    ax.set_xticks(x)
-    ax.set_xticklabels(merged["Label"].values, fontsize=9)
-    ax.set_ylim(bottom=0, top=105)
-    ax.set_yticks([0, 25, 50, 75, 100])
-    ax.grid(True, color=GRID_COLOR, linewidth=0.4, alpha=0.5, axis="y")
-    plt.tight_layout()
-
-    fig.savefig(
-        SEASON_PARTICIPATION_LOLLIPOP_PNG_PATH, dpi=CHART_DPI,
-        facecolor=BG_COLOR, bbox_inches="tight",
-    )
-    plt.close(fig)
-    return SEASON_PARTICIPATION_LOLLIPOP_PNG_PATH
-
-
-# ---------------------------------------------------------------------------
-# 9. Season Participation — AREA CHART (growth emphasis)
-# ---------------------------------------------------------------------------
-
-def generate_season_participation_area_png():
-    """Gradient-filled area chart — emphasizes cumulative growth."""
-
-    OUTPUT_FOLDER.mkdir(exist_ok=True)
-
-    merged = _load_season_participation_data()
-    if merged is None:
-        return None
-
-    x = list(range(len(merged)))
-    rates = merged["Rate"].values
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    _style_axes(ax, fig)
-
-    # Area fill
-    ax.fill_between(x, rates, alpha=0.3, color=ACCENT_COLOR, zorder=2)
-    # Line on top
-    ax.plot(
-        x, rates,
-        color=ACCENT_COLOR, linewidth=3, marker="o", markersize=10,
-        markerfacecolor="white", markeredgecolor=ACCENT_COLOR, markeredgewidth=2.5,
-        zorder=4,
-    )
-
-    # % labels
-    for i, rate in enumerate(rates):
-        ax.text(
-            i, rate + 3, f"{rate}%",
-            ha="center", va="bottom",
-            color=ACCENT_COLOR, fontsize=13, fontweight="bold",
-        )
-
-    ax.set_title(
-        "Season Participation",
-        color=ACCENT_COLOR, fontsize=15, fontweight="bold", pad=14,
-    )
-    ax.set_xlabel("Session", color=TEXT_COLOR, fontsize=11)
-    ax.set_ylabel("Participation %", color=TEXT_COLOR, fontsize=11)
-    ax.set_xticks(x)
-    ax.set_xticklabels(merged["Label"].values, fontsize=9)
-    ax.set_ylim(bottom=0, top=105)
-    ax.set_yticks([0, 25, 50, 75, 100])
-    ax.grid(True, color=GRID_COLOR, linewidth=0.4, alpha=0.5)
-    plt.tight_layout()
-
-    fig.savefig(
-        SEASON_PARTICIPATION_AREA_PNG_PATH, dpi=CHART_DPI,
-        facecolor=BG_COLOR, bbox_inches="tight",
-    )
-    plt.close(fig)
-    return SEASON_PARTICIPATION_AREA_PNG_PATH
-
-
-# ---------------------------------------------------------------------------
-# 10. Season Participation — HORIZONTAL BAR (dashboard style)
+# 7. Season Participation — HORIZONTAL BAR (dashboard style)
 # ---------------------------------------------------------------------------
 
 def generate_season_participation_hbar_png():
@@ -765,25 +593,34 @@ def generate_season_participation_hbar_png():
     if merged is None:
         return None
 
+    n = len(merged)
+
+    # --- Auto-scale: CHART_FIGSIZE as base, grows for many bars ---
+    fig_h = max(CHART_FIGSIZE[1], n * 0.4)
+    fig_w = CHART_FIGSIZE[0]
+    bar_h = max(0.3, min(0.5, 5.0 / max(n, 1)))
+    label_fs = max(7, min(12, 120 // max(n, 1)))
+    ytick_fs = max(7, min(9, 100 // max(n, 1)))
+
     # Reverse so earliest session is at top
     labels = merged["Label"].str.replace("\n", " \u2014 ", regex=False).values[::-1]
     rates = merged["Rate"].values[::-1]
     y = list(range(len(labels)))
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     _style_axes(ax, fig)
 
     # Background bars (100%)
-    ax.barh(y, [100] * len(y), color=GRID_COLOR, height=0.5, zorder=2)
+    ax.barh(y, [100] * len(y), color=GRID_COLOR, height=bar_h, zorder=2)
     # Foreground bars (actual %)
-    ax.barh(y, rates, color=ACCENT_COLOR, height=0.5, zorder=3)
+    ax.barh(y, rates, color=ACCENT_COLOR, height=bar_h, zorder=3)
 
     # % label at end of each bar
     for i, rate in enumerate(rates):
         ax.text(
             rate + 1, i, f"{rate}%",
             ha="left", va="center",
-            color=ACCENT_COLOR, fontsize=12, fontweight="bold",
+            color=ACCENT_COLOR, fontsize=label_fs, fontweight="bold",
         )
 
     ax.set_title(
@@ -792,7 +629,7 @@ def generate_season_participation_hbar_png():
     )
     ax.set_xlabel("Participation %", color=TEXT_COLOR, fontsize=11)
     ax.set_yticks(y)
-    ax.set_yticklabels(labels, fontsize=9)
+    ax.set_yticklabels(labels, fontsize=ytick_fs)
     ax.set_xlim(0, 110)
     ax.set_xticks([0, 25, 50, 75, 100])
     ax.grid(True, color=GRID_COLOR, linewidth=0.4, alpha=0.5, axis="x")
@@ -807,256 +644,9 @@ def generate_season_participation_hbar_png():
 
 
 # ---------------------------------------------------------------------------
-# 11. Season Participation — STEP CHART (discrete jumps)
-# ---------------------------------------------------------------------------
-
-def generate_season_participation_step_png():
-    """Step chart — shows discrete jumps between sessions."""
-
-    OUTPUT_FOLDER.mkdir(exist_ok=True)
-
-    merged = _load_season_participation_data()
-    if merged is None:
-        return None
-
-    x = list(range(len(merged)))
-    rates = merged["Rate"].values
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    _style_axes(ax, fig)
-
-    # Step line (post-aligned — holds value until next point)
-    ax.step(x, rates, where="mid", color=ACCENT_COLOR, linewidth=3, zorder=3)
-
-    # Dots at each actual data point
-    ax.scatter(
-        x, rates,
-        color=ACCENT_COLOR, s=120, zorder=4,
-        edgecolors="white", linewidths=2,
-    )
-
-    # % labels
-    for i, rate in enumerate(rates):
-        ax.text(
-            i, rate + 3, f"{rate}%",
-            ha="center", va="bottom",
-            color=ACCENT_COLOR, fontsize=13, fontweight="bold",
-        )
-
-    # Shaded bands
-    ax.axhspan(0, 25, alpha=0.04, color="#F87171")
-    ax.axhspan(25, 50, alpha=0.04, color="#FB923C")
-    ax.axhspan(50, 75, alpha=0.04, color=ACCENT_COLOR)
-    ax.axhspan(75, 100, alpha=0.04, color="#4ADE80")
-
-    ax.set_title(
-        "Season Participation",
-        color=ACCENT_COLOR, fontsize=15, fontweight="bold", pad=14,
-    )
-    ax.set_xlabel("Session", color=TEXT_COLOR, fontsize=11)
-    ax.set_ylabel("Participation %", color=TEXT_COLOR, fontsize=11)
-    ax.set_xticks(x)
-    ax.set_xticklabels(merged["Label"].values, fontsize=9)
-    ax.set_ylim(bottom=0, top=105)
-    ax.set_yticks([0, 25, 50, 75, 100])
-    ax.grid(True, color=GRID_COLOR, linewidth=0.4, alpha=0.5, axis="y")
-    plt.tight_layout()
-
-    fig.savefig(
-        SEASON_PARTICIPATION_STEP_PNG_PATH, dpi=CHART_DPI,
-        facecolor=BG_COLOR, bbox_inches="tight",
-    )
-    plt.close(fig)
-    return SEASON_PARTICIPATION_STEP_PNG_PATH
-
-
-# ---------------------------------------------------------------------------
-# 12. Season Participation — DOT PLOT (Cleveland style)
-# ---------------------------------------------------------------------------
-
-def generate_season_participation_dot_png():
-    """Cleveland dot plot — dots with horizontal connector lines."""
-
-    OUTPUT_FOLDER.mkdir(exist_ok=True)
-
-    merged = _load_season_participation_data()
-    if merged is None:
-        return None
-
-    # Reverse so earliest at top
-    labels = merged["Label"].str.replace("\n", " \u2014 ", regex=False).values[::-1]
-    rates = merged["Rate"].values[::-1]
-    y = list(range(len(labels)))
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    _style_axes(ax, fig)
-
-    # Horizontal lines from 0 to dot
-    ax.hlines(y, xmin=0, xmax=rates, color=GRID_COLOR, linewidth=2, zorder=2)
-
-    # Dots
-    ax.scatter(
-        rates, y,
-        color=ACCENT_COLOR, s=250, zorder=4,
-        edgecolors="white", linewidths=2,
-    )
-
-    # % inside dot
-    for i, rate in enumerate(rates):
-        ax.text(
-            rate, i, f"{rate}",
-            ha="center", va="center",
-            color="white", fontsize=10, fontweight="bold", zorder=5,
-        )
-
-    ax.set_title(
-        "Season Participation",
-        color=ACCENT_COLOR, fontsize=15, fontweight="bold", pad=14,
-    )
-    ax.set_xlabel("Participation %", color=TEXT_COLOR, fontsize=11)
-    ax.set_yticks(y)
-    ax.set_yticklabels(labels, fontsize=9)
-    ax.set_xlim(0, 105)
-    ax.set_xticks([0, 25, 50, 75, 100])
-    ax.grid(True, color=GRID_COLOR, linewidth=0.4, alpha=0.5, axis="x")
-    plt.tight_layout()
-
-    fig.savefig(
-        SEASON_PARTICIPATION_DOT_PNG_PATH, dpi=CHART_DPI,
-        facecolor=BG_COLOR, bbox_inches="tight",
-    )
-    plt.close(fig)
-    return SEASON_PARTICIPATION_DOT_PNG_PATH
-
-
-# ---------------------------------------------------------------------------
-# 13. Season Participation — GAUGE / DONUT (one per session)
-# ---------------------------------------------------------------------------
-
-def generate_season_participation_gauge_png():
-    """Semi-circle gauge chart — one donut per session showing % filled."""
-
-    OUTPUT_FOLDER.mkdir(exist_ok=True)
-
-    merged = _load_season_participation_data()
-    if merged is None:
-        return None
-
-    n = len(merged)
-    fig, axes = plt.subplots(1, n, figsize=(3 * n, 3.5))
-    fig.patch.set_facecolor(BG_COLOR)
-
-    if n == 1:
-        axes = [axes]
-
-    for i, ax in enumerate(axes):
-        rate = merged.iloc[i]["Rate"]
-        label = merged.iloc[i]["Label"].replace("\n", "\n")
-
-        # Donut: filled portion + remaining
-        sizes = [rate, 100 - rate]
-        colors_pie = [ACCENT_COLOR, GRID_COLOR]
-
-        wedges, _ = ax.pie(
-            sizes, colors=colors_pie,
-            startangle=90, counterclock=False,
-            wedgeprops={"width": 0.35, "edgecolor": BG_COLOR, "linewidth": 2},
-        )
-
-        # Center % text
-        ax.text(
-            0, 0, f"{rate}%",
-            ha="center", va="center",
-            fontsize=16, fontweight="bold", color=ACCENT_COLOR,
-        )
-
-        # Session label below
-        ax.set_xlabel(label, fontsize=8, color=TEXT_COLOR, labelpad=8)
-        ax.set_facecolor(BG_COLOR)
-
-    fig.suptitle(
-        "Season Participation",
-        color=ACCENT_COLOR, fontsize=14, fontweight="bold", y=0.98,
-    )
-    plt.tight_layout(rect=[0, 0, 1, 0.92])
-
-    fig.savefig(
-        SEASON_PARTICIPATION_GAUGE_PNG_PATH, dpi=CHART_DPI,
-        facecolor=BG_COLOR, bbox_inches="tight",
-    )
-    plt.close(fig)
-    return SEASON_PARTICIPATION_GAUGE_PNG_PATH
-
-
-# ---------------------------------------------------------------------------
-# 14. Season Participation — DELTA / CHANGE CHART
-# ---------------------------------------------------------------------------
-
-def generate_season_participation_delta_png():
-    """Delta chart — shows change (+/-) between consecutive sessions."""
-
-    OUTPUT_FOLDER.mkdir(exist_ok=True)
-
-    merged = _load_season_participation_data()
-    if merged is None or len(merged) < 2:
-        return None
-
-    rates = merged["Rate"].values
-    deltas = np.diff(rates)  # change from one session to next
-
-    # Labels for transitions: "S1 → S2", "S2 → S3", etc.
-    transition_labels = []
-    for i in range(len(deltas)):
-        d1 = merged.iloc[i]["Date"].strftime("%d %b")
-        d2 = merged.iloc[i + 1]["Date"].strftime("%d %b")
-        transition_labels.append(f"{d1}\n\u2192 {d2}")
-
-    x = list(range(len(deltas)))
-    colors = [ACCENT_COLOR if d >= 0 else SECONDARY_COLOR for d in deltas]
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    _style_axes(ax, fig)
-
-    bars = ax.bar(x, deltas, color=colors, width=0.4, edgecolor=colors, zorder=3)
-
-    # Zero line
-    ax.axhline(0, color=TEXT_COLOR, linewidth=0.8, alpha=0.5)
-
-    # Delta labels on bars
-    for i, bar in enumerate(bars):
-        h = bar.get_height()
-        sign = "+" if deltas[i] >= 0 else ""
-        label_y = h + 0.5 if h >= 0 else h - 0.5
-        va = "bottom" if h >= 0 else "top"
-        ax.text(
-            bar.get_x() + bar.get_width() / 2,
-            label_y, f"{sign}{deltas[i]}%",
-            ha="center", va=va,
-            color=colors[i], fontsize=14, fontweight="bold",
-        )
-
-    ax.set_title(
-        "Season Participation",
-        color=ACCENT_COLOR, fontsize=15, fontweight="bold", pad=14,
-    )
-    ax.set_xlabel("Transition", color=TEXT_COLOR, fontsize=11)
-    ax.set_ylabel("Change (%)", color=TEXT_COLOR, fontsize=11)
-    ax.set_xticks(x)
-    ax.set_xticklabels(transition_labels, fontsize=9)
-    ax.grid(True, color=GRID_COLOR, linewidth=0.4, alpha=0.5, axis="y")
-    plt.tight_layout()
-
-    fig.savefig(
-        SEASON_PARTICIPATION_DELTA_PNG_PATH, dpi=CHART_DPI,
-        facecolor=BG_COLOR, bbox_inches="tight",
-    )
-    plt.close(fig)
-    return SEASON_PARTICIPATION_DELTA_PNG_PATH
-
-
-# ---------------------------------------------------------------------------
 # Runner — generate all charts
 # ---------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     print(f"Saved: {generate_feedback_trend_png()}")
@@ -1065,11 +655,4 @@ if __name__ == "__main__":
     print(f"Saved: {generate_employees_vs_participants_monthly_png()}")
     print(f"Saved: {generate_participation_rate_png()}")
     print(f"Saved: {generate_season_participation_png()}")
-    print(f"Saved: {generate_season_participation_line_png()}")
-    print(f"Saved: {generate_season_participation_lollipop_png()}")
-    print(f"Saved: {generate_season_participation_area_png()}")
     print(f"Saved: {generate_season_participation_hbar_png()}")
-    print(f"Saved: {generate_season_participation_step_png()}")
-    print(f"Saved: {generate_season_participation_dot_png()}")
-    print(f"Saved: {generate_season_participation_gauge_png()}")
-    print(f"Saved: {generate_season_participation_delta_png()}")
