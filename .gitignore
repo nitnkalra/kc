@@ -1,12 +1,25 @@
-venv/
+# ---- PRIVATE KC DATA: never commit ----
+season_*/
+*.xlsx
+*.xls
+*.csv
+outputs/
+logs/
+*.log
+
+# ---- Python ----
 __pycache__/
 *.pyc
-*.pyo
-*.egg-info/
-.DS_Store
-*.log
+.venv/
+venv/
 .env
-.vscode/
-.idea/
-*.xlsx
-outputs/
+
+# ---- Landing page build ----
+landing/node_modules/
+landing/dist/
+landing/.astro/
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+~$*

@@ -1,0 +1,75 @@
+---
+interface Program {
+  id: string;
+  name: string;
+  eyebrow: string;
+  description: string;
+  formats: string[];
+}
+interface View {
+  key: string;
+  label: string;
+  sessions: number;
+  topics: number;
+  categories: [string, number][];
+}
+interface Props {
+  program: Program;
+  views: View[];
+  reverse?: boolean;
+}
+
+const { program: p, views, reverse = false } = Astro.props;
+---
+
+<section id={p.id} class="mx-auto max-w-7xl px-6 py-20">
+  <div class="grid items-center gap-10 lg:grid-cols-5">
+    <div class:list={['reveal lg:col-span-2', { 'lg:order-2': reverse }]}>
+      <span class="eyebrow">{p.eyebrow}</span>
+      <h2 class="section-title">{p.name}</h2>
+      <p class="mt-5 leading-relaxed text-slate-400">{p.description}</p>
+      <ul class="mt-6 flex flex-wrap gap-2">
+        {p.formats.map((f) => <li class="glass rounded-full px-3 py-1 text-xs font-medium text-kc-200">{f}</li>)}
+      </ul>
+    </div>
+
+    <div class="reveal lg:col-span-3" data-tabs>
+      <div class="glass mb-5 inline-flex rounded-full p-1" role="tablist">
+        {views.map((v, i) => (
+          <button type="button" role="tab" data-tab={v.key} class:list={['tab', { 'tab-active': i === 0 }]}>{v.label}</button>
+        ))}
+      </div>
+      {views.map((v, i) => (
+        <div data-panel={v.key} class:list={['space-y-4', { hidden: i !== 0 }]}>
+          {v.sessions === 0 ? (
+            <div class="glass rounded-2xl p-10 text-center">
+              <p class="text-3xl">⏳</p>
+              <p class="mt-3 font-display text-lg font-semibold text-white">First session coming soon</p>
+            </div>
+          ) : (
+            <>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="glass rounded-2xl bg-kc-500/10 p-6 text-center">
+                  <p class="font-display text-5xl font-bold text-gradient" data-count={v.sessions}>0</p>
+                  <p class="mt-2 text-sm text-slate-400">Sessions held</p>
+                </div>
+                <div class="glass rounded-2xl bg-kc-500/10 p-6 text-center">
+                  <p class="font-display text-5xl font-bold text-gradient" data-count={v.topics}>0</p>
+                  <p class="mt-2 text-sm text-slate-400">Topics covered</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {v.categories.map(([c, n]) => (
+                  <div class="glass rounded-xl p-4 text-center transition hover:-translate-y-1">
+                    <p class="font-display text-3xl font-bold text-white" data-count={n}>0</p>
+                    <p class="mt-1 text-xs leading-tight text-slate-400">{c}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

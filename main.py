@@ -14,6 +14,7 @@ from config import (
 from src.logger import get_logger
 from src.processor import process_season
 from leaderboard import render_leaderboard_png
+from publish_site import publish_site
 from score_timeline import build_score_timeline
 from visualization import (
     generate_feedback_trend_png,
@@ -66,6 +67,9 @@ def main():
 
         generate_season_participation_hbar_png()
         logger.info(f"PNG saved — {SEASON_PARTICIPATION_HBAR_PNG_PATH.name}")
+
+        # 5. Landing page data — public-safe JSON into landing/src/data/
+        publish_site(logger)
 
         logger.info("Process completed successfully")
 
