@@ -16,7 +16,7 @@ KC_ROOT = Path(
 )
 
 # Active season sub-folder name — change to "season_6", "season_7", etc.
-SEASON = "season_5"
+SEASON = "season_6"
 
 # ---------------------------------------------------------------------------
 # Active theme — change this one value to reskin everything.

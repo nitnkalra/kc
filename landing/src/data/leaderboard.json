@@ -1,17 +1,181 @@
 {
   "title": "Season Standings",
   "data": [
-    { "name": "Samarpita Hazra", "score": 170 },
-    { "name": "Maitrayee Majumdar", "score": 160 },
-    { "name": "Suthakaran Venkatachalapathi", "score": 160 },
-    { "name": "Nayan Sarkar", "score": 145 },
-    { "name": "Saurabh Suresh More", "score": 145 },
-    { "name": "Sujit Kumar Mishra", "score": 135 },
-    { "name": "Akhil Jangam", "score": 110 },
-    { "name": "Dhanwantari Rokade", "score": 100 },
-    { "name": "Swagata Banerjee", "score": 90 },
-    { "name": "Shyam Patel", "score": 80 },
-    { "name": "Jit Talukdar", "score": 75 },
-    { "name": "Saurabh Singh", "score": 75 }
+    {
+      "name": "Samarpita Hazra",
+      "score": 170
+    },
+    {
+      "name": "Maitrayee Majumdar",
+      "score": 160
+    },
+    {
+      "name": "Suthakaran Venkatachalapathi",
+      "score": 160
+    },
+    {
+      "name": "Nayan Sarkar",
+      "score": 145
+    },
+    {
+      "name": "Saurabh Suresh More",
+      "score": 145
+    },
+    {
+      "name": "Sujit Kumar Mishra",
+      "score": 135
+    },
+    {
+      "name": "Akhil Jangam",
+      "score": 110
+    },
+    {
+      "name": "Dhanwantari Rokade",
+      "score": 100
+    },
+    {
+      "name": "Swagata Banerjee",
+      "score": 90
+    },
+    {
+      "name": "Shyam Patel",
+      "score": 80
+    },
+    {
+      "name": "Jit Talukdar",
+      "score": 75
+    },
+    {
+      "name": "Saurabh Singh",
+      "score": 75
+    },
+    {
+      "name": "Vinay Kumar",
+      "score": 70
+    },
+    {
+      "name": "Sayantani Chatterjee",
+      "score": 70
+    },
+    {
+      "name": "Vidwan Reddy Morangapally",
+      "score": 70
+    },
+    {
+      "name": "Shubham Shivaji Naikanavare",
+      "score": 70
+    },
+    {
+      "name": "Cynthia Philomine N",
+      "score": 60
+    },
+    {
+      "name": "Sanket Dattatraya Pimpalgaonkar",
+      "score": 55
+    },
+    {
+      "name": "Gnanaprakash Ganitala",
+      "score": 55
+    },
+    {
+      "name": "Kalyani C Shahapur",
+      "score": 50
+    },
+    {
+      "name": "Smruti Anuragini",
+      "score": 50
+    },
+    {
+      "name": "Vashishth Divyangkumar Raval",
+      "score": 50
+    },
+    {
+      "name": "Shreya Sarkar",
+      "score": 50
+    },
+    {
+      "name": "Satyapriya Ghosh",
+      "score": 50
+    },
+    {
+      "name": "Nitin Kalra",
+      "score": 50
+    },
+    {
+      "name": "Anubhab Joardar",
+      "score": 50
+    },
+    {
+      "name": "Waquar Ahmed Khan",
+      "score": 45
+    },
+    {
+      "name": "Praveen Satya Sai Varma Manthena",
+      "score": 45
+    },
+    {
+      "name": "Pradeep Chandrakant Dhanawade",
+      "score": 45
+    },
+    {
+      "name": "Aditi Ashish Baheti",
+      "score": 35
+    },
+    {
+      "name": "Shaikshavali Divaan",
+      "score": 30
+    },
+    {
+      "name": "Amber Vashistha",
+      "score": 30
+    },
+    {
+      "name": "Omkar Virbhadra Venkatpurwar",
+      "score": 25
+    },
+    {
+      "name": "Pragya Kumari",
+      "score": 25
+    },
+    {
+      "name": "Gavesh Kumar Sahu",
+      "score": 25
+    },
+    {
+      "name": "Lakshmi Priya Kirla",
+      "score": 25
+    },
+    {
+      "name": "Shahid Nawaz Haider",
+      "score": 25
+    },
+    {
+      "name": "Tezi Sourya",
+      "score": 20
+    },
+    {
+      "name": "Prakhar Gupta",
+      "score": 15
+    },
+    {
+      "name": "Ananya Lahiri",
+      "score": 10
+    },
+    {
+      "name": "Nitish Sikder",
+      "score": 5
+    },
+    {
+      "name": "Harshit Bardana",
+      "score": 0
+    },
+    {
+      "name": "Nadeem Syed",
+      "score": 0
+    },
+    {
+      "name": "Milan Naik",
+      "score": 0
+    }
   ]
 }

@@ -1,51 +1,316 @@
 {
   "currentSeason": 6,
-  "categories": ["Data Science & AI", "Data Engineering", "Cloud & Low-Code", "Software Engineering & QA", "Business & Communication"],
+  "categories": [
+    "Data Science & AI",
+    "Data Engineering",
+    "Cloud & Low-Code",
+    "Software Engineering & QA",
+    "Business & Communication"
+  ],
   "sessions": [
-    { "title": "Technical and Business Communication", "program": "tech-tuesdays", "season": null, "category": "Business & Communication" },
-    { "title": "Power Automate", "program": "tech-tuesdays", "season": null, "category": "Cloud & Low-Code" },
-    { "title": "Azure Open AI Embeddings", "program": "tech-tuesdays", "season": null, "category": "Data Science & AI" },
-    { "title": "Microsoft Fabric", "program": "tech-tuesdays", "season": null, "category": "Data Engineering" },
-    { "title": "JSON Server", "program": "tech-tuesdays", "season": null, "category": "Software Engineering & QA" },
-    { "title": "Visualizing Transformers", "program": "tech-tuesdays", "season": null, "category": "Data Science & AI" },
-    { "title": "Delta Lake", "program": "tech-tuesdays", "season": null, "category": "Data Engineering" },
-    { "title": "Dynamic 365", "program": "tech-tuesdays", "season": null, "category": "Cloud & Low-Code" },
-    { "title": "Sentiment Analysis", "program": "tech-tuesdays", "season": null, "category": "Data Science & AI" },
-    { "title": "Retrieval Augmented Generation", "program": "tech-tuesdays", "season": null, "category": "Data Science & AI" },
-    { "title": "The Art of Python Code", "program": "tech-tuesdays", "season": null, "category": "Software Engineering & QA" },
-    { "title": "RAG Is Not Enough - The Next Evolution of Knowledge-Augmented GenAI", "program": "tech-tuesdays", "season": null, "category": "Data Science & AI" },
-    { "title": "Introduction to UI/UX", "program": "tech-tuesdays", "season": null, "category": "Software Engineering & QA" },
-    { "title": "How to write a prompt like a pro", "program": "tech-tuesdays", "season": null, "category": "Data Science & AI" },
-    { "title": "Introduction to MS Fabric", "program": "tech-tuesdays", "season": null, "category": "Data Engineering" },
-    { "title": "Beyond Words - Speech Emotion Recognition", "program": "tech-tuesdays", "season": null, "category": "Data Science & AI" },
-    { "title": "Finetuning an LLM", "program": "tech-tuesdays", "season": null, "category": "Data Science & AI" },
-    { "title": "How Testing Really Works in the Real World", "program": "tech-tuesdays", "season": null, "category": "Software Engineering & QA" },
-    { "title": "Cursor IDE - Code Development Acceleration with GenAI and Agentic Workflows", "program": "tech-tuesdays", "season": null, "category": "Data Science & AI" },
-    { "title": "How Flutter Works in Building Native Apps from a Single Codebase", "program": "tech-tuesdays", "season": null, "category": "Software Engineering & QA" },
-    { "title": "PII & anonymization", "program": "tech-tuesdays", "season": null, "category": "Data Science & AI" },
-    { "title": "CI/CD", "program": "tech-tuesdays", "season": null, "category": "Software Engineering & QA" },
-    { "title": "Introduction to Azure Logic App", "program": "tech-tuesdays", "season": null, "category": "Cloud & Low-Code" },
-    { "title": "AI Evaluation", "program": "tech-tuesdays", "season": null, "category": "Data Science & AI" },
-    { "title": "Demand Planning KPIs", "program": "tech-tuesdays", "season": null, "category": "Business & Communication" },
-    { "title": "General QA Process", "program": "tech-tuesdays", "season": null, "category": "Software Engineering & QA" },
-    { "title": "Databricks Unity Catalog for Modern Data Governance", "program": "tech-tuesdays", "season": 5, "category": "Data Engineering" },
-    { "title": "How to Deploy Azure Data Factory using CICD from DEV to UAT", "program": "tech-tuesdays", "season": 5, "category": "Data Engineering" },
-    { "title": "Beyond ChatGPT - AI Agents That Actually Get Things Done", "program": "tech-tuesdays", "season": 5, "category": "Data Science & AI" },
-    { "title": "DECODE-iT", "program": "decode-it", "season": 5, "topics": [] },
-    { "title": "Delta Live Tables and its real time uses", "program": "tech-tuesdays", "season": 5, "category": "Data Engineering" },
-    { "title": "Databricks Apps - Building Secure Data & AI Applications Inside Databricks", "program": "tech-tuesdays", "season": 5, "category": "Data Engineering" },
-    { "title": "Fundamentals of Microsoft Power Apps", "program": "tech-tuesdays", "season": 5, "category": "Cloud & Low-Code" },
-    { "title": "LlamaIndex Retrievers Deep Dive - Building Better RAG", "program": "tech-tuesdays", "season": 5, "category": "Data Science & AI" },
-    { "title": "Microsoft Fabric Eventstream & Eventhouse", "program": "tech-tuesdays", "season": 5, "category": "Data Engineering" },
-    { "title": "How to Debug PySpark Like a Pro", "program": "tech-tuesdays", "season": 5, "category": "Data Engineering" },
-    { "title": "Model Context Protocol-MCP", "program": "tech-tuesdays", "season": 5, "category": "Data Science & AI" },
-    { "title": "AI Evaluation - How to Evaluate AI Agents", "program": "tech-tuesdays", "season": 5, "category": "Data Science & AI" },
-    { "title": "Databricks Unity Catalog Migration", "program": "tech-tuesdays", "season": 5, "category": "Data Engineering" },
-    { "title": "OpenFGA for Fine-Grained Authorization in Modern Applications", "program": "tech-tuesdays", "season": 5, "category": "Software Engineering & QA" },
-    { "title": "Databricks Data Layout Optimization: Partitioning vs Z-Ordering vs Liquid Clustering", "program": "tech-tuesdays", "season": 5, "category": "Data Engineering" },
-    { "title": "DECODE-iT", "program": "decode-it", "season": 5, "topics": [] },
-    { "title": "Idempotency in Data Engineering: The Secret to Safe Reprocessing", "program": "tech-tuesdays", "season": 6, "category": "Data Engineering" },
-    { "title": "Watermarking LLM generated text", "program": "tech-tuesdays", "season": 6, "category": "Data Science & AI" },
-    { "title": "Inside Databricks SQL: Decode, Diagnose & Optimize", "program": "tech-tuesdays", "season": 6, "category": "Data Engineering" }
+    {
+      "title": "Technical and Business Communication",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Business & Communication"
+    },
+    {
+      "title": "Power Automate",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Cloud & Low-Code"
+    },
+    {
+      "title": "Azure Open AI Embeddings",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "Microsoft Fabric",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Engineering"
+    },
+    {
+      "title": "JSON Server",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Software Engineering & QA"
+    },
+    {
+      "title": "Visualizing Transformers",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "Delta Lake",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Engineering"
+    },
+    {
+      "title": "Dynamic 365",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Cloud & Low-Code"
+    },
+    {
+      "title": "Sentiment Analysis",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "Retrieval Augmented Generation",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "The Art of Python Code",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Software Engineering & QA"
+    },
+    {
+      "title": "RAG Is Not Enough - The Next Evolution of Knowledge-Augmented GenAI",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "Introduction to UI/UX",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Software Engineering & QA"
+    },
+    {
+      "title": "How to write a prompt like a pro",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "Introduction to MS Fabric",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Engineering"
+    },
+    {
+      "title": "Beyond Words - Speech Emotion Recognition",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "Finetuning an LLM",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "How Testing Really Works in the Real World",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Software Engineering & QA"
+    },
+    {
+      "title": "Cursor IDE - Code Development Acceleration with GenAI and Agentic Workflows",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "How Flutter Works in Building Native Apps from a Single Codebase",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Software Engineering & QA"
+    },
+    {
+      "title": "PII & anonymization",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "CI/CD",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Software Engineering & QA"
+    },
+    {
+      "title": "Introduction to Azure Logic App",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Cloud & Low-Code"
+    },
+    {
+      "title": "AI Evaluation",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "Demand Planning KPIs",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Business & Communication"
+    },
+    {
+      "title": "General QA Process",
+      "program": "tech-tuesdays",
+      "season": null,
+      "category": "Software Engineering & QA"
+    },
+    {
+      "title": "Databricks Unity Catalog for Modern Data Governance",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Data Engineering"
+    },
+    {
+      "title": "How to Deploy Azure Data Factory using CICD from DEV to UAT",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Data Engineering"
+    },
+    {
+      "title": "Beyond ChatGPT - AI Agents That Actually Get Things Done",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "DECODE-iT",
+      "program": "decode-it",
+      "season": 5,
+      "topics": [
+        {
+          "title": "APIs explained through restaurant waiters",
+          "category": "Software Engineering & QA"
+        },
+        {
+          "title": "What happens when you type a URL",
+          "category": "Software Engineering & QA"
+        },
+        {
+          "title": "Delta Lake Time Travel",
+          "category": "Data Engineering"
+        },
+        {
+          "title": "How Facial Recognition Works",
+          "category": "Data Science & AI"
+        }
+      ]
+    },
+    {
+      "title": "Delta Live Tables and its real time uses",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Data Engineering"
+    },
+    {
+      "title": "Databricks Apps – Building Secure Data & AI Applications Inside Databricks",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Data Engineering"
+    },
+    {
+      "title": "Fundamentals of Microsoft Power Apps",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Cloud & Low-Code"
+    },
+    {
+      "title": "LlamaIndex Retrievers Deep Dive - Building Better RAG",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "Microsoft Fabric Eventstream & Eventhouse",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Data Engineering"
+    },
+    {
+      "title": "How to Debug PySpark Like a Pro",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Data Engineering"
+    },
+    {
+      "title": "Model Context Protocol-MCP",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "AI Evaluation - How to Evaluate AI Agents",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "Databricks Unity Catalog Migration",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Data Engineering"
+    },
+    {
+      "title": "OpenFGA for Fine-Grained Authorization in Modern Applications",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Software Engineering & QA"
+    },
+    {
+      "title": "Databricks Data Layout Optimization: Partitioning vs Z-Ordering vs Liquid Clustering",
+      "program": "tech-tuesdays",
+      "season": 5,
+      "category": "Data Engineering"
+    },
+    {
+      "title": "DECODE-iT",
+      "program": "decode-it",
+      "season": 5,
+      "topics": [
+        {
+          "title": "Authentication + Authorization",
+          "category": "Software Engineering & QA"
+        },
+        {
+          "title": "What happens when a company’s data is wrong?",
+          "category": "Data Engineering"
+        },
+        {
+          "title": "How does ChatGPT actually knows what word comes next?",
+          "category": "Data Science & AI"
+        },
+        {
+          "title": "How does Netflix decide which design people prefer?",
+          "category": "Business & Communication"
+        }
+      ]
+    },
+    {
+      "title": "Idempotency in Data Engineering: The Secret to Safe Reprocessing",
+      "program": "tech-tuesdays",
+      "season": 6,
+      "category": "Data Engineering"
+    },
+    {
+      "title": "Watermarking LLM generated text",
+      "program": "tech-tuesdays",
+      "season": 6,
+      "category": "Data Science & AI"
+    },
+    {
+      "title": "Inside Databricks SQL: Decode, Diagnose & Optimize",
+      "program": "tech-tuesdays",
+      "season": 6,
+      "category": "Data Engineering"
+    }
   ]
 }

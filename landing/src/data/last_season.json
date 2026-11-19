@@ -1,8 +1,17 @@
 {
   "season": 5,
   "winners": [
-    { "name": "Saurabh Suresh More", "score": 805 },
-    { "name": "Maitrayee Majumdar", "score": 800 },
-    { "name": "Satish Raghunath Walde", "score": 745 }
+    {
+      "name": "Saurabh Suresh More",
+      "score": 805
+    },
+    {
+      "name": "Maitrayee Majumdar",
+      "score": 800
+    },
+    {
+      "name": "Satish Raghunath Walde",
+      "score": 745
+    }
   ]
 }
