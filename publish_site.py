@@ -39,9 +39,11 @@ from config import (
 REPO_DIR = Path(__file__).resolve().parent
 SITE_DATA_DIR = REPO_DIR / "landing" / "src" / "data"
 
-# Commit + push the generated JSON after each run (GitHub Actions then
-# rebuilds the site). Only landing/src/data/*.json is ever staged.
+# Commit + push the generated JSON after each run. Only landing/src/data/*.json
+# is ever staged. Push happens only from PUSH_BRANCH; the live site deploys
+# after the develop -> qa -> main pull requests are merged.
 AUTO_GIT_PUSH = True
+PUSH_BRANCH = "develop"
 
 # all_session_details.xlsx conventions:
 #   Topic    : regular -> one topic; decode-it -> comma-separated speaker topics.
@@ -241,6 +243,13 @@ def _git_push(logger) -> None:
         if _git("rev-parse", "--is-inside-work-tree").returncode != 0:
             logger.warning(f"{REPO_DIR} is not a git repo - auto push skipped")
             return
+        branch = _git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+        if branch != PUSH_BRANCH:
+            logger.warning(
+                f"On branch '{branch}', not '{PUSH_BRANCH}' - auto push skipped. "
+                f"Run 'git checkout {PUSH_BRANCH}' and re-run to publish."
+            )
+            return
         data_glob = SITE_DATA_DIR.relative_to(REPO_DIR).as_posix() + "/*.json"
         _git("add", "--", data_glob)
         if _git("diff", "--cached", "--quiet", "--", data_glob).returncode == 0:
@@ -254,7 +263,9 @@ def _git_push(logger) -> None:
         if push.returncode != 0:
             logger.warning(f"git push failed: {push.stderr.strip()}")
             return
-        logger.info("Site data pushed - GitHub Pages will redeploy in 1-2 min")
+        logger.info(
+            f"Site data pushed to '{PUSH_BRANCH}' - merge {PUSH_BRANCH} -> qa -> main to go live"
+        )
     except FileNotFoundError:
         logger.warning("git not installed / not on PATH - auto push skipped")
 
