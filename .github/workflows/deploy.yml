@@ -3,7 +3,7 @@ name: Deploy landing page to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ["landing/**", ".github/workflows/deploy.yml"]
+    paths: ["src/frontend/**", ".github/workflows/deploy.yml"]
   workflow_dispatch:
 
 permissions:
@@ -20,17 +20,21 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: landing
+        working-directory: src/frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: npm install
+          # Node version comes from package.json "engines" - single source of truth
+          node-version-file: src/frontend/package.json
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      # npm ci = exact versions from package-lock.json (fails if out of sync)
+      - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: landing/dist
+          path: src/frontend/dist
 
   deploy:
     needs: build

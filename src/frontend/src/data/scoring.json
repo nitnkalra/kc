@@ -1,0 +1,32 @@
+{
+  "attendanceBands": [
+    [
+      90,
+      25
+    ],
+    [
+      75,
+      20
+    ],
+    [
+      50,
+      15
+    ],
+    [
+      25,
+      10
+    ],
+    [
+      5,
+      5
+    ],
+    [
+      0,
+      0
+    ]
+  ],
+  "feedback": 25,
+  "presentation": 100,
+  "decodePool": 100,
+  "consecutiveBonus": 5
+}
