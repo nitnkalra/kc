@@ -7,17 +7,17 @@ outputs/
 logs/
 *.log
 
-# ---- Python ----
+# ---- Python (src/backend) ----
 __pycache__/
 *.pyc
 .venv/
 venv/
 .env
 
-# ---- Landing page build ----
-landing/node_modules/
-landing/dist/
-landing/.astro/
+# ---- Website build (src/frontend) ----
+node_modules/
+dist/
+.astro/
 
 # ---- OS / editor ----
 .DS_Store
