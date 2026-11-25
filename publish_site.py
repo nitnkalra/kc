@@ -15,6 +15,8 @@ Or from main.py: publish_site(logger)
 
 import json
 import re
+import subprocess
+from datetime import date
 from pathlib import Path
 from typing import Optional
 
@@ -34,7 +36,12 @@ from config import (
 # Settings
 # ---------------------------------------------------------------------------
 
-SITE_DATA_DIR = Path(__file__).resolve().parent / "landing" / "src" / "data"
+REPO_DIR = Path(__file__).resolve().parent
+SITE_DATA_DIR = REPO_DIR / "landing" / "src" / "data"
+
+# Commit + push the generated JSON after each run (GitHub Actions then
+# rebuilds the site). Only landing/src/data/*.json is ever staged.
+AUTO_GIT_PUSH = True
 
 # all_session_details.xlsx conventions:
 #   Topic    : regular -> one topic; decode-it -> comma-separated speaker topics.
@@ -75,6 +82,18 @@ def _write(name: str, payload: dict, logger) -> None:
         encoding="utf-8",
     )
     logger.info(f"Site data saved - {path.name}")
+
+
+_MONTHS = [
+    "January", "February", "March", "April", "May", "June", "July",
+    "August", "September", "October", "November", "December",
+]
+
+
+def _run_date(day: Optional[date] = None) -> str:
+    """Run date as '25 November 2026' (English month, independent of OS locale)."""
+    day = day or date.today()
+    return f"{day.day} {_MONTHS[day.month - 1]} {day.year}"
 
 
 def _read_standings(path: Path) -> Optional[list]:
@@ -194,13 +213,50 @@ def publish_site(logger) -> None:
     if standings is None:
         logger.warning(f"{LEADERBOARD_JSON_PATH.name} not found - leaderboard not updated")
     else:
-        _write("leaderboard.json", {"title": "Season Standings", "data": standings}, logger)
+        _write("leaderboard.json", {
+            "title": "Season Standings",
+            "lastUpdated": _run_date(),
+            "data": standings,
+        }, logger)
 
     last = _build_last_season(current) if current else None
     if last is None:
         logger.warning("Previous season leaderboard not found - winners not updated")
     else:
         _write("last_season.json", last, logger)
+
+    if AUTO_GIT_PUSH:
+        _git_push(logger)
+
+
+def _git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["git", *args], cwd=REPO_DIR, capture_output=True, text=True, check=False
+    )
+
+
+def _git_push(logger) -> None:
+    """Stage only the site JSON; commit and push if anything changed."""
+    try:
+        if _git("rev-parse", "--is-inside-work-tree").returncode != 0:
+            logger.warning(f"{REPO_DIR} is not a git repo - auto push skipped")
+            return
+        data_glob = SITE_DATA_DIR.relative_to(REPO_DIR).as_posix() + "/*.json"
+        _git("add", "--", data_glob)
+        if _git("diff", "--cached", "--quiet", "--", data_glob).returncode == 0:
+            logger.info("Site data unchanged - nothing to push")
+            return
+        commit = _git("commit", "-m", f"site: update data ({SEASON})", "--", data_glob)
+        if commit.returncode != 0:
+            logger.warning(f"git commit failed: {commit.stderr.strip()}")
+            return
+        push = _git("push")
+        if push.returncode != 0:
+            logger.warning(f"git push failed: {push.stderr.strip()}")
+            return
+        logger.info("Site data pushed - GitHub Pages will redeploy in 1-2 min")
+    except FileNotFoundError:
+        logger.warning("git not installed / not on PATH - auto push skipped")
 
 
 if __name__ == "__main__":

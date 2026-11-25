@@ -2,9 +2,9 @@
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 
-// GitHub Pages:
-//  - Project site (https://<user>.github.io/<repo>/): set `base` to '/<repo>'
-//  - User/org site or custom domain: set `base` to '/'
+// GitHub Pages: https://nitnkalra.github.io/kc/
+//  - site = https://<github-username>.github.io
+//  - base = /<repo-name>
 export default defineConfig({
   site: 'https://nitnkalra.github.io',
   base: '/kc',
