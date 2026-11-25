@@ -1,0 +1,12 @@
+# KC backend - single source of truth for Python package versions.
+# Python 3.10 - 3.12. Install:  pip install -r requirements.txt
+# Exact pins = same versions on every machine. Upgrade by editing here only.
+
+pandas==2.2.3
+numpy==2.2.6
+openpyxl==3.1.5
+matplotlib==3.10.3
+Pillow==11.3.0
+
+# Optional - only for running notebooks/ locally in Jupyter
+jupyter==1.1.1
